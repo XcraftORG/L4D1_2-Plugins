@@ -1,0 +1,9 @@
+Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse
+-detail-
+1.被特感抓住期間不能換隊
+2.跳到旁觀的玩家一定時間內不得回來隊伍
+3.死亡人類玩家不能換隊
+
+-command-
+"l4d2_spectate_cooltime", "4.0", "Time in seconds an sur/inf player can't rejoin the sur/inf team."
+"l4d2_deadplayer_changeteam", "0", "Can Dead Survivor Player change team? (0:No, 1:Yes)"
