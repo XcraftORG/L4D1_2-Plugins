@@ -5,8 +5,9 @@
 last edited:2018/12/4
 
 # Plugins
-* l4d_afk_commands: Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse
-* fix_ghostsound: Mute some SI sounds for Survivors.
-* fix_specbotkick: Fixed no Survivor bots issue. Fix more Survivor bots issue.
-* l4d_DynamicHostname: Show what mode is it now on server name(support any Language) with txt file
+* <b>l4d_afk_commands</b>: Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse
+* <b>fix_ghostsound</b>: Mute some SI sounds for Survivors.
+* <b>fix_specbotkick</b>: Fixed no Survivor bots issue. Fix more Survivor bots issue.
+* <b>l4d_DynamicHostname</b>: Show what mode is it now on server name(support any Language) with txt file
+
 
