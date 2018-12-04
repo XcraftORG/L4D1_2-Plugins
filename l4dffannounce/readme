@@ -1,0 +1,6 @@
+Adds Friendly Fire Announcements (who kills teammates)
+
+-command-
+"l4d_ff_announce_version", "1.4", "FF announce Version"
+"l4d_ff_announce_enable", "1", "Enable Announcing Friendly Fire"
+"l4d_ff_announce_type", "1", "Changes how ff announce displays FF damage (1:In chat; 2: In Hint Box; 3: In center text)"
