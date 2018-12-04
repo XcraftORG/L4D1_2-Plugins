@@ -1,0 +1,6 @@
+Let's play a game, Duel 決鬥!!
+
+-command-
+!roll <number>, !picknumber <number> (擲骰子)
+!code <number> (終極密碼)
+!coin, !flip,!coinflip (猜硬幣)
