@@ -3,7 +3,8 @@
 (All plugins in here apply to both L4D1/2) 
 
 last edited:2018/12/4
-
+# Require
+* <b>colors.inc</b>: https://forums.alliedmods.net/showthread.php?t=96831
 # Plugins
 * <b>l4d_afk_commands</b>: Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse
 * <b>fix_ghostsound</b>: Mute some SI sounds for Survivors.
