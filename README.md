@@ -9,5 +9,6 @@ last edited:2018/12/4
 * <b>fix_ghostsound</b>: Mute some SI sounds for Survivors.
 * <b>fix_specbotkick</b>: Fixed no Survivor bots issue. Fix more Survivor bots issue.
 * <b>l4d_DynamicHostname</b>: Show what mode is it now on server name(support any Language) with txt file
+* <b>games</b>: Let's play a game, Duel 決鬥!!
 
 
