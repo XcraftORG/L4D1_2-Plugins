@@ -3,7 +3,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <colors>
-
+#define CVAR_FLAGS				FCVAR_NOTIFY
 public Plugin:myinfo = 
 {
 	name = "L4D FF Announce Plugin",
@@ -22,9 +22,9 @@ new bool:FFActive[MAXPLAYERS+1]; //Stores whether players are in a state of frie
 new Handle:directorready;
 public OnPluginStart()
 {
-	CreateConVar("l4d_ff_announce_version", "1.4", "FF announce Version",FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_NOTIFY);
-	FFenabled = CreateConVar("l4d_ff_announce_enable", "1", "Enable Announcing Friendly Fire",FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_NOTIFY);
-	AnnounceType = CreateConVar("l4d_ff_announce_type", "1", "Changes how ff announce displays FF damage (1:In chat; 2: In Hint Box; 3: In center text)",FCVAR_PLUGIN|FCVAR_SPONLY);
+	CreateConVar("l4d_ff_announce_version", "1.4", "FF announce Version",CVAR_FLAGS);
+	FFenabled = CreateConVar("l4d_ff_announce_enable", "1", "Enable Announcing Friendly Fire",CVAR_FLAGS);
+	AnnounceType = CreateConVar("l4d_ff_announce_type", "1", "Changes how ff announce displays FF damage (1:In chat; 2: In Hint Box; 3: In center text)",CVAR_FLAGS);
 	HookEvent("player_hurt_concise", Event_HurtConcise, EventHookMode_Post);
 	directorready = FindConVar("director_ready_duration");
 	HookEvent("player_death", Event_PlayerDeath);
@@ -39,7 +39,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	if(GetClientTeam(attacker) == 2 ) //人類 kill
 	{
 		if(GetClientTeam(victim) == 2 && victim != attacker)//人類死亡
-			CPrintToChatAll("{green}[提示] {olive}%N {lightgreen}星爆氣流斬 {default}隊友 {olive}%N{default}.",attacker, victim);
+			CPrintToChatAll("{green}[提示] {lightgreen}%N {default}星爆氣流斬 {olive}%N{default}.",attacker, victim);
 	}	
 }
 public Action:Event_HurtConcise(Handle:event, const String:name[], bool:dontBroadcast)
@@ -96,9 +96,9 @@ public Action:AnnounceFF(Handle:timer, Handle:pack) //Called if the attacker did
 					case 1:
 					{
 						if (IsClientInGame(attackerc) && IsClientConnected(attackerc) && !IsFakeClient(attackerc))
-							CPrintToChat(attackerc, "\x01[\x05JS\x01] {red}你剛射 {default}%d {red}滴血給 {default}%s",DamageCache[attackerc][i],victim);
+							PrintToChat(attackerc, "\x01[\x05TS\x01] \x01你剛造成 \x04%d \x01滴血給 \x03%s\x01.",DamageCache[attackerc][i],victim);
 						if (IsClientInGame(i) && IsClientConnected(i) && !IsFakeClient(i))
-							CPrintToChat(i, "\x01[\x05JS\x01] {default}%s {red}射了 {default}%d {red}滴血給你",attacker,DamageCache[attackerc][i]);
+							PrintToChat(i, "\x01[\x05TS\x01] \x03%s \x01造成了 \x04%d \x01滴血給你.",attacker,DamageCache[attackerc][i]);
 					}
 					case 2:
 					{
