@@ -4,7 +4,6 @@
 #include <sdktools>
 #include <sdkhooks>
 #undef REQUIRE_PLUGIN
-#include <l4d_lib>
 
 //人類不會聽到特感靈魂的跳躍聲
 //靈魂復活聲
@@ -48,4 +47,14 @@ public Action:SI_sh_OnSoundEmitted(clients[64], &numClients, String:sample[PLATF
 		}
 	}
 	return Plugin_Continue;
+}
+
+stock IsPlayerGhost(client)
+{
+	return GetEntProp(client, Prop_Send, "m_isGhost");
+}
+
+stock bool:IsClient(index)
+{
+	return index > 0 && index <= MaxClients;
 }
