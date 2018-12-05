@@ -2,7 +2,7 @@
 
 (All plugins in here apply to both L4D1/2) 
 
-last edited:2018/12/4
+last edited:2018/12/5
 # Require
 * <b>colors.inc</b>: https://forums.alliedmods.net/showthread.php?t=96831
 # Plugins
