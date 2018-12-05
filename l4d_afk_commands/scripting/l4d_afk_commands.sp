@@ -1,100 +1,41 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * [L4D(2)] AFK and Join Team Commands (1.1)                                     *
- *                                                                               *
- * V 1.1 - Easy Editing and Changelog.                                           *
- * Added a changelog on this topic and in the .SP file.                          *
- * Added a editing guide for adding/removing commands in the .SP file.           *
- *                                                                               *
- * V 1.0 - Initial Release :                                                     *
- * Changelog starts here on the .SP file and on the site.                        *
- *                                                                               *
- * V Beta - Tested on my server:                                                 *
- * Creating/Testing the plugin on my server and in PawnStudio.                   * 
- *                                                                               *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * EDITING THE COMMANDS:                                                         *
- * Scroll down a bit, and you'll see for example a line like this:               *
- *                                                                               *
- * "RegConsoleCmd("sm_afk", AFKTurnClientToSpectate);"                           *
- *                                                                               *
- * Broken apart:                                                                 *
- * "RegConsoleCmd" The command to make a command.                                *
- * "("sm_afk"...                                                                 *
- * "sm_afk" is the command, anything which you type in chat with a '!' or        *
- * "/" before it MUST start with "sm_", after "sm_" you put the word.            *
- * Example: "sm_imgoingtospectate", if you wanna use that command,               *
- * you have to type "!imgoingtospectate" in the console.                         *
- *                                                                               *
- * Yet, after "("sm_afk"" there's something else...                              *
- * "("sm_afk", AFKTurnClientToSpectate);                                         *
- * If you look deeper into the code, you see:                                    *
- * public Action:AFKTurnClientToSpectate(client, argCount)                       *
- * What's between the '(' and ')' doesn't matter for you.                        *
- * Basicly, "AFKTurnClientToSpectate" if a name to forward to.                   *
- * You have:                                                                     *
- *                                                                               *
- * -AFKTurnClientToSpectate : Moves the client to spectator team.                *
- * -AFKTurnClientToSurvivors : Moves the client to infected team.                *
- * -AFKTurnClientToInfected : Moves the client to survivors team.                *
- *                                                                               *
- * So, you want for example, when you type "!imgoingafk" in chat,                *
- * you want to go spectate...                                                    *
- *                                                                               *
- * RegConsoleCmd ("sm_imgoingafk", AFKTurnClientToSpectate);                     *
- * Remember to place the ';' behind it!                                          *
- *                                                                               *
- * Now you want, when you type "!iwannaplayinfected" in chat,                    *
- * you want to go infected...                                                    *
- *                                                                               *
- * RegConsoleCmd ("sm_iwannaplayinfected", AFKTurnClientToInfected);             *
- * Again, make sure to place the ';' behind it.                                  *
- *                                                                               *
- * So, that's how to custimize it! Have fun with this, and                       *
- * when you like it, please leave behind a message on the forum topic.           *
- *                                                                               *
- * Remember, editing it correctly is safe, check if your line is like the others *
- * and you'll be fine, after editing, go to:                                     *
- * "MODDIR/addons/sourcemod/scripting" and paste the .SP file in there.          *
- * Then drag the .SP file into "compile.exe" and let it compile.                 *
- * Then go to the "compiled" folder and voilla, your edited plugin is there!     *
- *                                                                               *
- * NOTE: if you edit the plugin wrong, it won't compile or with errors...        *
- * * * * * *                                                           * * * * * *
- * NOTE: This is CASE-SENSITIVE!                                                 *
- * so: "!ImGoingToSpectate" isn't the same as "!imgoingtospectate"...            *
- * And doing so won't make it work...                                            *
- * Since people like to type everything in Lower-Case, i'd advise you to do too. *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * End of Commentry, editing behind these few lines may lead to a non working,   *
- * unstable plugin causing crashes or  bugs, editing at own risk.                *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/*version: 1.7*/
+//本插件用來防止玩家換隊濫用的Bug
+//禁止期間不能閒置 亦不可按M換隊
+//1.嚇了Witch或被Witch抓倒 期間禁止換隊 (防止Witch失去目標)
+//2.被特感抓住期間 期間禁止換隊 (防止濫用特感控了無傷)
+//3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
+//4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "1.6"
+#define PLUGIN_VERSION    "1.7"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
 #include <sdktools>
+#include <sdkhooks>
 #include <colors>
 
-static InCoolDownTime[MAXPLAYERS+1] = false;//是否能加入
+static InCoolDownTime[MAXPLAYERS+1] = false;//是否還有換隊冷卻時間
 static Float:CoolTime;
 static Handle:cvarCoolTime					= INVALID_HANDLE;
 static bool:bClientJoinedTeam[MAXPLAYERS+1] = false; //在冷卻時間是否嘗試加入
-static Float:g_iSpectatePenaltyCounter[MAXPLAYERS+1]  ;//各自的冷卻時間
-static bool:clientBusy[MAXPLAYERS+1];//被特感抓住期間是否能換隊
+static Float:g_iSpectatePenaltyCounter[MAXPLAYERS+1] ;//各自的冷卻時間
+static bool:clientBusy[MAXPLAYERS+1];//是否被特感控
 static bool:b_IsL4D2;
 #define ZOMBIECLASS_CHARGER	6
-static ChargerGot;
+static ChargerGot[MAXPLAYERS+1];//Charger抓住的人
+static WitchTarget[5000];//WitchTarget[妹子元素編號]=鎖定的玩家
+static clientteam[MAXPLAYERS+1];//玩家換隊成功之後的隊伍
 static Handle:cvarDeadChangeTeamEnable					= INVALID_HANDLE;
 static DeadChangeTeamEnable;
 new Handle:g_hGameMode;
 new String:CvarGameMode[20];
+static bool:LEFT_SAFE_ROOM;
 
 public Plugin:myinfo =
 {
 	name = PLUGIN_NAME,
 	author = "MasterMe,modify by Harry",
-	description = "Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse",
+	description = "Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no change team abuse",
 	version = PLUGIN_VERSION,
 	url = "http://forums.alliedmods.net/showthread.php?t=122476"
 };
@@ -116,31 +57,32 @@ public OnPluginStart()
 {
 
 
-	RegConsoleCmd("sm_afk", AFKTurnClientToSpectate);
-	RegConsoleCmd("sm_s", AFKTurnClientToSpectate);
-	RegConsoleCmd("sm_join", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_bot", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_away", AFKTurnClientToSpectate);
-	RegConsoleCmd("sm_idle", AFKTurnClientToSpectate);
-	RegConsoleCmd("sm_spectate", AFKTurnClientToSpectate);
-	RegConsoleCmd("sm_spec", AFKTurnClientToSpectate);
-	RegConsoleCmd("sm_spectators", AFKTurnClientToSpectate);
-	RegConsoleCmd("sm_joinspectators", AFKTurnClientToSpectate);
-	RegConsoleCmd("sm_jointeam1", AFKTurnClientToSpectate)
-	RegConsoleCmd("sm_survivors", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_survivor", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_sur", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_joinsurvivors", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_jointeam2", AFKTurnClientToSurvivors);
-	RegConsoleCmd("sm_infected", AFKTurnClientToInfected);
-	RegConsoleCmd("sm_inf", AFKTurnClientToInfected);
-	RegConsoleCmd("sm_joininfected", AFKTurnClientToInfected);
-	RegConsoleCmd("sm_jointeam3", AFKTurnClientToInfected);
+	RegConsoleCmd("sm_afk", TurnClientToSpectate);
+	RegConsoleCmd("sm_s", TurnClientToSpectate);
+	RegConsoleCmd("sm_join", TurnClientToSurvivors);
+	RegConsoleCmd("sm_bot", TurnClientToSurvivors);
+	RegConsoleCmd("sm_jointeam", TurnClientToSurvivors)
+	RegConsoleCmd("sm_away", TurnClientToSpectate);
+	RegConsoleCmd("sm_idle", TurnClientToSpectate);
+	RegConsoleCmd("sm_spectate", TurnClientToSpectate);
+	RegConsoleCmd("sm_spec", TurnClientToSpectate);
+	RegConsoleCmd("sm_spectators", TurnClientToSpectate);
+	RegConsoleCmd("sm_joinspectators", TurnClientToSpectate);
+	RegConsoleCmd("sm_jointeam1", TurnClientToSpectate)
+	RegConsoleCmd("sm_survivors", TurnClientToSurvivors);
+	RegConsoleCmd("sm_survivor", TurnClientToSurvivors);
+	RegConsoleCmd("sm_sur", TurnClientToSurvivors);
+	RegConsoleCmd("sm_joinsurvivors", TurnClientToSurvivors);
+	RegConsoleCmd("sm_jointeam2", TurnClientToSurvivors);
+	RegConsoleCmd("sm_infected", TurnClientToInfected);
+	RegConsoleCmd("sm_inf", TurnClientToInfected);
+	RegConsoleCmd("sm_joininfected", TurnClientToInfected);
+	RegConsoleCmd("sm_jointeam3", TurnClientToInfected);
 	
 	RegConsoleCmd("jointeam", WTF);
 	RegConsoleCmd("go_away_from_keyboard", WTF2);
 
-	cvarCoolTime = CreateConVar("l4d2_spectate_cooltime", "4.0", "Time in seconds an sur/inf player can't rejoin the sur/inf team.", FCVAR_NOTIFY);
+	cvarCoolTime = CreateConVar("l4d2_changeteam_cooltime", "4.0", "Time in seconds a player can't change team again.", FCVAR_NOTIFY);
 	cvarDeadChangeTeamEnable = CreateConVar("l4d2_deadplayer_changeteam", "0", "Can Dead Survivor Player change team? (0:No, 1:Yes)", FCVAR_NOTIFY);
 	
 	DeadChangeTeamEnable = GetConVarBool(cvarDeadChangeTeamEnable);
@@ -152,6 +94,7 @@ public OnPluginStart()
 	HookEvent("tongue_grab", Event_Survivor_GOT);
 	HookEvent("pounce_stopped", Event_Survivor_RELEASE);
 	HookEvent("tongue_release", Event_Survivor_RELEASE);
+	HookEvent("witch_harasser_set", OnWitchWokeup);
 	if(b_IsL4D2)
 	{
 		HookEvent("charger_carry_start", Event_Survivor_GOT);
@@ -162,14 +105,18 @@ public OnPluginStart()
 	
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_death",		Event_PlayerDeath);
+	HookEvent("player_team", Event_PlayerChangeTeam);
+	HookEvent("player_left_start_area", Event_PlayerLeftStartArea, EventHookMode_Post);
 	
 	//HookEvent("player_bot_replace", OnPlayerBotReplace);
 
 	
 	CheckSpectatePenalty();
+	Clear();
 	
 	g_hGameMode = FindConVar("mp_gamemode");
 	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
+	HookConVarChange(cvarDeadChangeTeamEnable, ConVarChange_CvarGameMode);
 }
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
@@ -178,9 +125,10 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	if(!IsClientAndInGame(client)) return;
 	clientBusy[client] = false;
 	
-	if(GetClientTeam(client) == 3 && GetEntProp(client,Prop_Send,"m_zombieClass") == ZOMBIECLASS_CHARGER && ChargerGot > 0)
+	if(GetClientTeam(client) == 3 && GetEntProp(client,Prop_Send,"m_zombieClass") == ZOMBIECLASS_CHARGER && ChargerGot[client] > 0)
 	{
-		clientBusy[ChargerGot] = false;
+		clientBusy[ChargerGot[client]] = false;
+		ChargerGot[client] = 0;
 	}
 }
 
@@ -194,7 +142,7 @@ public Event_Survivor_GOT (Handle:event, const String:name[], bool:dontBroadcast
 	new attacker = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(IsClientAndInGame(attacker) && GetClientTeam(attacker) == 3 && GetEntProp(attacker,Prop_Send,"m_zombieClass") == ZOMBIECLASS_CHARGER)
 	{
-		ChargerGot = victim;
+		ChargerGot[attacker] = victim;
 	}
 }
 public Event_Survivor_RELEASE (Handle:event, const String:name[], bool:dontBroadcast)
@@ -205,9 +153,93 @@ public Event_Survivor_RELEASE (Handle:event, const String:name[], bool:dontBroad
 	clientBusy[victim] = false;
 }
 
+public OnClientPutInServer(client)
+{
+	Clear(client);
+	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);	
+}
+
+public OnClientDisconnect(client)
+{
+	Clear(client);
+}
+
+public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3])
+{
+	if (!IsValidEdict(victim) || !IsValidEdict(attacker) || !IsValidEdict(inflictor) || !LEFT_SAFE_ROOM) { return Plugin_Continue; }
+	
+	if(GetClientTeam(victim) != 2 || !IsClientAndInGame(victim)) { return Plugin_Continue; }
+	if(WitchTarget[attacker] == victim) { return Plugin_Continue; }
+	decl String:sClassname[64];
+	GetEntityClassname(inflictor, sClassname, 64);
+	if(StrEqual(sClassname, "witch"))
+	{
+		WitchTarget[attacker] = victim;
+		clientBusy[victim] = true;
+		//PrintToChatAll("attacker: %d, victim: %d",attacker,victim);
+		CreateTimer(0.25, TraceWitchAlive, attacker, TIMER_REPEAT);
+	}
+	return Plugin_Continue;
+}
+
+public Action:OnWitchWokeup(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	if(!LEFT_SAFE_ROOM) return;
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	new witchid = GetEventInt(event, "witchid");
+	if(client > 0 && client <= MaxClients &&  IsClientInGame(client) && GetClientTeam(client) == 2)
+	{
+		WitchTarget[witchid] = client;
+		clientBusy[client] = true;
+		CreateTimer(0.25, TraceWitchAlive, witchid, TIMER_REPEAT);
+	}
+	
+}
+
+public Action:TraceWitchAlive(Handle:timer, any:entity)
+{
+	new witchtarget = WitchTarget[entity];
+	if(!IsValidEntity(witchtarget)) return Plugin_Stop;
+	if (!IsValidEntity(entity))//witch dead or gone
+	{
+		//PrintToChatAll("Witch id:%d dead or gone, client: %d",entity,witchtarget);
+		new iWitch = -1;
+		while((iWitch = FindEntityByClassname(iWitch, "witch")) != -1)
+		{
+			if(iWitch!=entity && WitchTarget[iWitch] == witchtarget)
+			{
+				//PrintToChatAll("Witch id:%d still tracing client: %d",iWitch,witchtarget);
+				return Plugin_Stop;
+			}
+		}
+		clientBusy[witchtarget] = false;
+		WitchTarget[entity] = -1;
+		return Plugin_Stop;
+	}
+	clientBusy[witchtarget] = true;
+	return Plugin_Continue;
+}
+
+public Action:Event_PlayerChangeTeam(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	CreateTimer(0.1, ClientReallyChangeTeam, client, _); // check delay
+}
+
+public Action:Event_PlayerLeftStartArea(Handle:event, String:name[], bool:dontBroadcast)
+{
+	LEFT_SAFE_ROOM = true;
+}
+
 public ConVarChange_cvarCoolTime(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	CheckSpectatePenalty();
+}
+
+public ConVarChange_CvarGameMode(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	g_hGameMode = FindConVar("mp_gamemode");
+	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
 }
 
 public ConVarChange_cvarDeadChangeTeamEnable(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -217,30 +249,38 @@ public ConVarChange_cvarDeadChangeTeamEnable(Handle:convar, const String:oldValu
 
 static CheckSpectatePenalty()
 {
-	if(GetConVarFloat(cvarCoolTime) < -1.0) CoolTime = -1.0;
+	if(GetConVarFloat(cvarCoolTime) <= 0.0) CoolTime = 0.0;
 	else CoolTime = GetConVarFloat(cvarCoolTime);
-	
-	ChargerGot = 0;
-	new i;
-	for(i = 1; i <= MaxClients; i++)
-	{	
-		g_iSpectatePenaltyCounter[i] = CoolTime;
-		InCoolDownTime[i] = false;
-		bClientJoinedTeam[i] = false;
-		clientBusy[i] = false;
-	}
 	
 }
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	CheckSpectatePenalty();
+	Clear();
 }
 
-public OnRoundStart()
+Clear(client = -1)
 {
-	CheckSpectatePenalty();
+	if(client == -1)
+	{
+		for(new i = 1; i <= MaxClients; i++)
+		{	
+			InCoolDownTime[i] = false;
+			bClientJoinedTeam[i] = false;
+			clientBusy[i] = false;
+			ChargerGot[i] = 0;
+			clientteam[i] = 0;
+		}
+		LEFT_SAFE_ROOM = false;
+	}	
+	else
+	{
+		InCoolDownTime[client] = false;
+		bClientJoinedTeam[client] = false;
+		clientBusy[client] = false;
+		ChargerGot[client] = -1;
+		clientteam[client] = 0;
+	}
 }
-
 
 //When a bot replaces a player (i.e. player switches to spectate or infected)
 //public Action:OnPlayerBotReplace(Handle:event, const String:name[], bool:dontBroadcast)
@@ -250,48 +290,7 @@ public OnRoundStart()
 //}
 
 
-public Action:Timer_CanJoin(Handle:timer, any:client)
-{
-	
-	if (!InCoolDownTime[client] || !IsClientInGame(client) || IsFakeClient(client)) return Plugin_Stop; //if client disconnected or is fake client
-
-	
-	
-	if (g_iSpectatePenaltyCounter[client] != 0)
-	{
-		g_iSpectatePenaltyCounter[client]-=0.5;
-		if(GetClientTeam(client)!=1)
-		{	
-			bClientJoinedTeam[client] = true;
-			CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to rejoin team again.", g_iSpectatePenaltyCounter[client]);
-			ChangeClientTeam(client, 1);
-			return Plugin_Continue;
-		}
-	}
-	else if (g_iSpectatePenaltyCounter[client] <= 0)
-	{
-		if(GetClientTeam(client)!=1)
-		{	
-			bClientJoinedTeam[client] = true;
-			CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to rejoin team again.", g_iSpectatePenaltyCounter[client]);
-			ChangeClientTeam(client, 1);
-		}
-		if (GetClientTeam(client) == 1 && bClientJoinedTeam[client])
-		{
-			CPrintToChat(client, "{default}[{olive}TS{default}] You can join team now.");	//only print this hint text to the spectator if he tried to join team, and got swapped before
-		}
-		InCoolDownTime[client] = false;
-		bClientJoinedTeam[client] = false;
-		g_iSpectatePenaltyCounter[client] = CoolTime;
-		return Plugin_Stop;
-	}
-	
-	
-	return Plugin_Continue;
-}
-
-
-public Action:AFKTurnClientToSpectate(client, argCount)
+public Action:TurnClientToSpectate(client, argCount)
 {
 	if (client == 0)
 	{
@@ -300,36 +299,21 @@ public Action:AFKTurnClientToSpectate(client, argCount)
 	}
 	if(GetClientTeam(client) != 1)
 	{
+		if(!CanClientChangeTeam(client)) return Plugin_Handled;
+		
 		if(GetClientTeam(client) == 2)
-		{
-			if(!PlayerIsAlive(client)&&!DeadChangeTeamEnable)
-			{
-				CPrintToChat(client, "{default}[{olive}TS{default}] 死亡倖存者禁止換隊.");
-				return Plugin_Handled;
-			}
-			if (clientBusy[client])
-			{
-				CPrintToChat(client, "{default}[{olive}TS{default}] 特感抓住期間禁止換隊.");
-				return Plugin_Handled;
-			}
-		
 			FakeClientCommand(client, "go_away_from_keyboard");
-		}
 		
-		if (GetClientTeam(client) != 1)
-			ChangeClientTeam(client, 1);
-			
-		if(CoolTime > -1.0)
-		{
-			InCoolDownTime[client] = true;
-			CreateTimer(0.5, Timer_CanJoin, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE); // Start unpause countdown
-		}
+		CreateTimer(0.1, CheckClientInSpecTeam, client, _); // check if client really spec
+		
+		clientteam[client] = 1;
+		StartChangeTeamCoolDown(client);
 	}
 	return Plugin_Handled;
 }
 
 
-public Action:AFKTurnClientToSurvivors(client, args)
+public Action:TurnClientToSurvivors(client, args)
 { 
 	if (client == 0)
 	{
@@ -341,12 +325,8 @@ public Action:AFKTurnClientToSurvivors(client, args)
 		CPrintToChat(client, "{default}[{olive}TS{default}] You are already on the Survivor team.");
 		return Plugin_Handled;
 	}
-	if(InCoolDownTime[client])
-	{
-		bClientJoinedTeam[client] = true;
-		CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to rejoin team again.", g_iSpectatePenaltyCounter[client]);
-		return Plugin_Handled;
-	}
+	
+	if(!CanClientChangeTeam(client)) return Plugin_Handled;
 	
 	new maxSurvivorSlots = GetTeamMaxHumans(2);
 	new survivorUsedSlots = GetTeamHumanCount(2);
@@ -361,7 +341,24 @@ public Action:AFKTurnClientToSurvivors(client, args)
 	}
 	else
 	{
-		if(StrEqual(CvarGameMode,"coop")||StrEqual(CvarGameMode,"survival"))
+		new bot;
+		
+		for(bot = 1; 
+			bot < (MaxClients + 1) && (!IsClientConnected(bot) || !IsFakeClient(bot) || (GetClientTeam(bot) != 2));
+			bot++) {}
+		
+		if(bot == (MaxClients + 1))
+		{			
+			new String:command[] = "sb_add";
+			new flags = GetCommandFlags(command);
+			SetCommandFlags(command, flags & ~FCVAR_CHEAT);
+			
+			ServerCommand("sb_add");
+			
+			SetCommandFlags(command, flags);
+		}
+
+		if(StrEqual(CvarGameMode,"coop")||StrEqual(CvarGameMode,"survival")||StrEqual(CvarGameMode,"realism"))
 		{
 			if(!IsClientConnected(client))
 				return Plugin_Handled;
@@ -370,35 +367,8 @@ public Action:AFKTurnClientToSurvivors(client, args)
 			{
 				if (GetClientTeam(client) == 3)			//if client is infected
 				{
-					new bot;
-					
-					for(bot = 1; 
-						bot < (MaxClients + 1) && (!IsClientConnected(bot) || !IsFakeClient(bot) || (GetClientTeam(bot) != 2));
-						bot++) {}
-					
-					if(bot == (MaxClients + 1))
-					{			
-						new String:command[] = "sb_add";
-						new flags = GetCommandFlags(command);
-						SetCommandFlags(command, flags & ~FCVAR_CHEAT);
-						
-						ServerCommand("sb_add");
-						
-						SetCommandFlags(command, flags);
-					}
 					CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 					
-				}
-				else if(GetClientTeam(client) == 2)
-				{	
-					if(DispatchKeyValue(client, "classname", "player") == true)
-					{
-						PrintHintText(client, "You are allready joined the Survivor team");
-					}
-					else if((DispatchKeyValue(client, "classname", "info_survivor_position") == true) && !IsAlive(client))
-					{
-						PrintHintText(client, "Please wait to be revived or rescued");
-					}
 				}
 				else if(IsClientIdle(client))
 				{
@@ -406,36 +376,24 @@ public Action:AFKTurnClientToSurvivors(client, args)
 				}
 				else
 				{	
-					TakeOverBot(client);			
+					CreateTimer(0.1, TakeOverBot, client, TIMER_FLAG_NO_MAPCHANGE);			
 				}
 			}	
 		}
 		else if(StrEqual(CvarGameMode,"versus")||StrEqual(CvarGameMode,"scavenge"))
 		{
-
-			new bot;
-			
-			for(bot = 1; 
-				bot < (MaxClients + 1) && (!IsClientConnected(bot) || !IsFakeClient(bot) || (GetClientTeam(bot) != 2));
-				bot++) {}
-			
-			if(bot == (MaxClients + 1))
-			{			
-				new String:command[] = "sb_add";
-				new flags = GetCommandFlags(command);
-				SetCommandFlags(command, flags & ~FCVAR_CHEAT);
-				
-				ServerCommand("sb_add");
-				
-				SetCommandFlags(command, flags);
-			}
 			CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 		}
+		else //其他未知模式
+			CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
+		
+		clientteam[client] = 2;	
+		StartChangeTeamCoolDown(client);
 	}
 	return Plugin_Handled;
 }
 
-public Action:AFKTurnClientToInfected(client, args)
+public Action:TurnClientToInfected(client, args)
 { 
 	if (client == 0)
 	{
@@ -447,24 +405,16 @@ public Action:AFKTurnClientToInfected(client, args)
 		CPrintToChat(client, "{default}[{olive}TS{default}] You are already on the Infected team.");
 		return Plugin_Handled;
 	}
-	if (clientBusy[client])
-	{
-		CPrintToChat(client, "{default}[{olive}TS{default}] 特感抓住期間禁止換隊.");
-		return Plugin_Handled;
-	}
+	
+	
+	
 	ChangeClientTeam(client, 3);
+	
+	StartChangeTeamCoolDown(client);
+	
 	return Plugin_Handled;
 }
-
-
-public OnClientPutInServer(client)
-{
-	g_iSpectatePenaltyCounter[client] = CoolTime;
-	InCoolDownTime[client] = false;
-	bClientJoinedTeam[client] = false;
-	clientBusy[client] = false;
-}
-
+	
 public Action:Survivor_Take_Control(Handle:timer, any:client)
 {
 		new localClientTeam = GetClientTeam(client);
@@ -528,19 +478,20 @@ public bool:IsInteger(String:buffer[])
     return true;    
 }
 
-public Action:WTF(client, args)
+public Action:WTF(client, args) //玩家press m
 {
 	if (client == 0)
 	{
 		PrintToServer("[TS] command cannot be used by server.");
 		return Plugin_Handled;
 	}
-	
 	if( args < 1 )
 	{
 		return Plugin_Handled;
 	}
 	
+	if(!CanClientChangeTeam(client)) return Plugin_Handled;
+
 	new String:arg1[64];
 	GetCmdArg(1, arg1, 64);
 	if(IsInteger(arg1))
@@ -562,6 +513,7 @@ public Action:WTF(client, args)
 			return Plugin_Handled;
 		}
 	}
+	
 	return Plugin_Continue;
 }
 
@@ -573,12 +525,16 @@ public Action:WTF2(client, args)
 		return Plugin_Handled;
 	}
 	
-	if (clientBusy[client])
+	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
-		CPrintToChat(client, "{default}[{olive}TS{default}] 特感抓住期間禁止換隊.");
+		CPrintToChat(client, "{default}[{olive}TS{default}] Go away!! infected player, you can't take a break");
 		return Plugin_Handled;
-	}	
+	}
 	
+	if(!CanClientChangeTeam(client)) return Plugin_Handled;
+	
+	clientteam[client] = 1;
+	StartChangeTeamCoolDown(client);
 	return Plugin_Continue;
 }
 stock bool:IsClientAndInGame(index)
@@ -597,24 +553,15 @@ bool:PlayerIsAlive (client)
 	return false;
 }
 
-public Action:Timer_AutoJoinTeam(Handle:timer, any:client)
+public Action:CheckClientInSpecTeam(Handle:timer, any:client)
 {
-	if(!IsClientConnected(client))
-		return Plugin_Stop;
+	if(!IsClientAndInGame(client)) return;
 	
-	if(IsClientInGame(client))
-	{
-		if(GetClientTeam(client) == 2)
-			return Plugin_Stop;
-		if(IsClientIdle(client))
-			return Plugin_Stop;
-		
-		AFKTurnClientToSurvivors(client, 0);
-	}
-	return Plugin_Continue;
+	if (GetClientTeam(client) != 1)
+		ChangeClientTeam(client, 1);
 }
 
-stock TakeOverBot(client)
+public Action:TakeOverBot(Handle:timer, any:client)
 {
 	if (!IsClientInGame(client)) return;
 	if (GetClientTeam(client) == 2) return;
@@ -631,7 +578,7 @@ stock TakeOverBot(client)
 	if (hSetHumanSpec == INVALID_HANDLE)
 	{
 		new Handle:hGameConf	;	
-		hGameConf = LoadGameConfigFile("l4dmultislots");
+		hGameConf = LoadGameConfigFile("l4d_afk_commands");
 		
 		StartPrepSDKCall(SDKCall_Player);
 		PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "SetHumanSpec");
@@ -714,4 +661,98 @@ bool:HasIdlePlayer(bot)
 		}
 	}
 	return false;
+}
+
+bool:CanClientChangeTeam(client)
+{
+	if (clientBusy[client])
+	{
+		CPrintToChat(client, "{default}[{olive}TS{default}] 特感抓住期間禁止換隊.");
+		return false;
+	}	
+	if(InCoolDownTime[client])
+	{
+		bClientJoinedTeam[client] = true;
+		CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to change team again.", g_iSpectatePenaltyCounter[client]);
+		return false;
+	}
+	if(GetClientTeam(client) == 2)
+	{
+		if(!PlayerIsAlive(client)&&!DeadChangeTeamEnable)
+		{
+			CPrintToChat(client, "{default}[{olive}TS{default}] 死亡倖存者禁止換隊.");
+			return false;
+		}
+	}
+	return true;
+}
+
+StartChangeTeamCoolDown(client)
+{
+	if(IsClientIdle(client)||InCoolDownTime[client]||!LEFT_SAFE_ROOM) return;
+	if(CoolTime > 0.0)
+	{
+		InCoolDownTime[client] = true;
+		g_iSpectatePenaltyCounter[client] = CoolTime;
+		CreateTimer(0.25, Timer_CanJoin, client, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+public Action:ClientReallyChangeTeam(Handle:timer, any:client)
+{
+	if(!IsClientAndInGame(client)||IsFakeClient(client)||InCoolDownTime[client]||!LEFT_SAFE_ROOM) return;
+	
+	//PrintToChatAll("client: %N change Team: %d clientteam[client]:%d",client,GetClientTeam(client),clientteam[client]);
+	if(GetClientTeam(client) != clientteam[client])
+	{
+		clientteam[client] = GetClientTeam(client);
+		StartChangeTeamCoolDown(client);
+		GetClientTeam(client);
+	}
+}
+
+public Action:Timer_CanJoin(Handle:timer, any:client)
+{
+	
+	if (!InCoolDownTime[client] || 
+	!IsClientInGame(client) || 
+	IsFakeClient(client) || 
+	IsClientIdle(client))//if client disconnected or is fake client or take a break on player bot
+	{
+		InCoolDownTime[client] = false;
+		return Plugin_Stop;
+	}
+
+	
+	if (g_iSpectatePenaltyCounter[client] != 0)
+	{
+		g_iSpectatePenaltyCounter[client]-=0.25;
+		if(GetClientTeam(client)!=clientteam[client])
+		{	
+			bClientJoinedTeam[client] = true;
+			CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to change team again.", g_iSpectatePenaltyCounter[client]);
+			ChangeClientTeam(client, 1);clientteam[client]=1;
+			return Plugin_Continue;
+		}
+	}
+	else if (g_iSpectatePenaltyCounter[client] <= 0)
+	{
+		if(GetClientTeam(client)!=clientteam[client])
+		{	
+			bClientJoinedTeam[client] = true;
+			CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to change team again.", g_iSpectatePenaltyCounter[client]);
+			ChangeClientTeam(client, 1);clientteam[client]=1;
+		}
+		if (bClientJoinedTeam[client])
+		{
+			CPrintToChat(client, "{default}[{olive}TS{default}] You can change team now.");	//only print this hint text to the spectator if he tried to join team, and got swapped before
+		}
+		InCoolDownTime[client] = false;
+		bClientJoinedTeam[client] = false;
+		g_iSpectatePenaltyCounter[client] = CoolTime;
+		return Plugin_Stop;
+	}
+	
+	
+	return Plugin_Continue;
 }
