@@ -297,6 +297,11 @@ public Action:TurnClientToSpectate(client, argCount)
 		PrintToServer("[TS] command cannot be used by server.");
 		return Plugin_Handled;
 	}
+	if(IsClientIdle(client))
+	{
+		PrintHintText(client, "You are now idle already.");
+		return Plugin_Handled;
+	}
 	if(GetClientTeam(client) != 1)
 	{
 		if(!CanClientChangeTeam(client)) return Plugin_Handled;
@@ -322,7 +327,12 @@ public Action:TurnClientToSurvivors(client, args)
 	}
 	if (GetClientTeam(client) == 2)			//if client is survivor
 	{
-		CPrintToChat(client, "{default}[{olive}TS{default}] You are already on the Survivor team.");
+		PrintHintText(client, "You are already on the Survivor team.");
+		return Plugin_Handled;
+	}
+	if(IsClientIdle(client))
+	{
+		PrintHintText(client, "You are now idle. Press mouse to play as survivor");
 		return Plugin_Handled;
 	}
 	
@@ -336,7 +346,7 @@ public Action:TurnClientToSurvivors(client, args)
 	
 	if (freeSurvivorSlots <= 0)
 	{
-		CPrintToChat(client, "{default}[{olive}TS{default}] Survivor team is full.");
+		PrintHintText(client, "Survivor team is full.");
 		return Plugin_Handled;
 	}
 	else
@@ -368,11 +378,9 @@ public Action:TurnClientToSurvivors(client, args)
 				if (GetClientTeam(client) == 3)			//if client is infected
 				{
 					CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
+					clientteam[client] = 2;	
+					StartChangeTeamCoolDown(client);
 					
-				}
-				else if(IsClientIdle(client))
-				{
-					PrintHintText(client, "You are now idle. Press mouse to play as survivor");
 				}
 				else
 				{	
@@ -381,12 +389,17 @@ public Action:TurnClientToSurvivors(client, args)
 			}	
 		}
 		else if(StrEqual(CvarGameMode,"versus")||StrEqual(CvarGameMode,"scavenge"))
+		{
 			CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
+			clientteam[client] = 2;	
+			StartChangeTeamCoolDown(client);
+		}
 		else //其他未知模式
+		{
 			CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
-		
-		clientteam[client] = 2;	
-		StartChangeTeamCoolDown(client);
+			clientteam[client] = 2;	
+			StartChangeTeamCoolDown(client);
+		}
 	}
 	return Plugin_Handled;
 }
@@ -400,7 +413,7 @@ public Action:TurnClientToInfected(client, args)
 	}
 	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
-		CPrintToChat(client, "{default}[{olive}TS{default}] You are already on the Infected team.");
+		PrintHintText(client, "You are already on the Infected team.");
 		return Plugin_Handled;
 	}
 	
@@ -525,7 +538,12 @@ public Action:WTF2(client, args)
 	
 	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
-		CPrintToChat(client, "{default}[{olive}TS{default}] Go away!! infected player, you can't take a break");
+		PrintHintText(client, "Go away!! infected player, you can't take a break");
+		return Plugin_Handled;
+	}
+	if(IsClientIdle(client))
+	{
+		PrintHintText(client, "You are now idle already.");
 		return Plugin_Handled;
 	}
 	
@@ -665,20 +683,20 @@ bool:CanClientChangeTeam(client)
 {
 	if (clientBusy[client])
 	{
-		CPrintToChat(client, "{default}[{olive}TS{default}] 特感抓住期間禁止換隊.");
+		PrintHintText(client, "特感抓住期間禁止換隊.");
 		return false;
 	}	
 	if(InCoolDownTime[client])
 	{
 		bClientJoinedTeam[client] = true;
-		CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to change team again.", g_iSpectatePenaltyCounter[client]);
+		CPrintToChat(client, "You can't change team so quickly! Wait %.0fs", g_iSpectatePenaltyCounter[client]);
 		return false;
 	}
 	if(GetClientTeam(client) == 2)
 	{
 		if(!PlayerIsAlive(client)&&!DeadChangeTeamEnable)
 		{
-			CPrintToChat(client, "{default}[{olive}TS{default}] 死亡倖存者禁止換隊.");
+			PrintHintText(client, "死亡倖存者禁止換隊.");
 			return false;
 		}
 	}
@@ -687,7 +705,7 @@ bool:CanClientChangeTeam(client)
 
 StartChangeTeamCoolDown(client)
 {
-	if(IsClientIdle(client)||InCoolDownTime[client]||!LEFT_SAFE_ROOM) return;
+	if(InCoolDownTime[client]||!LEFT_SAFE_ROOM) return;
 	if(CoolTime > 0.0)
 	{
 		InCoolDownTime[client] = true;
@@ -711,11 +729,9 @@ public Action:ClientReallyChangeTeam(Handle:timer, any:client)
 
 public Action:Timer_CanJoin(Handle:timer, any:client)
 {
-	
 	if (!InCoolDownTime[client] || 
 	!IsClientInGame(client) || 
-	IsFakeClient(client) || 
-	IsClientIdle(client))//if client disconnected or is fake client or take a break on player bot
+	IsFakeClient(client) )//if client disconnected or is fake client or take a break on player bot
 	{
 		InCoolDownTime[client] = false;
 		return Plugin_Stop;
@@ -728,7 +744,7 @@ public Action:Timer_CanJoin(Handle:timer, any:client)
 		if(GetClientTeam(client)!=clientteam[client])
 		{	
 			bClientJoinedTeam[client] = true;
-			CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to change team again.", g_iSpectatePenaltyCounter[client]);
+			CPrintToChat(client, "You can't change team so quickly! Wait %.0fs.", g_iSpectatePenaltyCounter[client]);
 			ChangeClientTeam(client, 1);clientteam[client]=1;
 			return Plugin_Continue;
 		}
@@ -738,12 +754,12 @@ public Action:Timer_CanJoin(Handle:timer, any:client)
 		if(GetClientTeam(client)!=clientteam[client])
 		{	
 			bClientJoinedTeam[client] = true;
-			CPrintToChat(client, "{default}[{olive}TS{default}] Wait {green}%.0fs {default}to change team again.", g_iSpectatePenaltyCounter[client]);
+			CPrintToChat(client, "You can't change team so quickly! Wait %.0fs.", g_iSpectatePenaltyCounter[client]);
 			ChangeClientTeam(client, 1);clientteam[client]=1;
 		}
 		if (bClientJoinedTeam[client])
 		{
-			CPrintToChat(client, "{default}[{olive}TS{default}] You can change team now.");	//only print this hint text to the spectator if he tried to join team, and got swapped before
+			PrintHintText(client, "You can change team now");	//only print this hint text to the spectator if he tried to join team, and got swapped before
 		}
 		InCoolDownTime[client] = false;
 		bClientJoinedTeam[client] = false;
