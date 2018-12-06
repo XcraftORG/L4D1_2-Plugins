@@ -11,3 +11,4 @@ last edited:2018/12/6
 * <b>l4d_DynamicHostname</b>: Show what mode is it now on server name(support any Language) with txt file
 * <b>games</b>: Let's play a game, Duel 決鬥!!
 * <b>l4dffannounce</b>: Adds Friendly Fire Announcements (who kills teammates)
+* <b>temphealthfix</b>: Ensures that survivors that have been incapacitated with a hittable object get their temp health set correctly
