@@ -3,8 +3,8 @@
 //禁止期間不能閒置 亦不可按M換隊
 //1.嚇了Witch或被Witch抓倒 期間禁止換隊 (防止Witch失去目標)
 //2.被特感抓住期間 期間禁止換隊 (防止濫用特感控了無傷)
-//3.人類玩家死亡 期間禁止換隊 (防止玩家故意送頭 然後跳隊裝B)
-//4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器/防止狂刷特感AI/防止略過death time skit)
+//3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
+//4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
 #define PLUGIN_VERSION    "1.7"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
@@ -406,9 +406,9 @@ public Action:TurnClientToInfected(client, args)
 		return Plugin_Handled;
 	}
 	
+	if(!CanClientChangeTeam(client)) return Plugin_Handled;
 	
-	
-	ChangeClientTeam(client, 3);
+	ChangeClientTeam(client, 3);clientteam[client] = 3;
 	
 	StartChangeTeamCoolDown(client);
 	
