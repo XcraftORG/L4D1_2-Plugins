@@ -1,8 +1,5 @@
 # L4D1&2-Plugins  by Harry Potter
-
-(All plugins in here apply to both L4D1/2) 
-
-last edited:2018/12/6
+>All plugins in here apply to both L4D1/2 (last edited:2018/12/7)
 # Plugins
 * <b>l4d_afk_commands</b>: Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse
 * <b>fix_specbotkick</b>: Fixed no Survivor bots issue. Fix more Survivor bots issue.
