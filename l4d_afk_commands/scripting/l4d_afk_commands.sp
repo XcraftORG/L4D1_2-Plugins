@@ -416,6 +416,10 @@ public Action:TurnClientToInfected(client, args)
 		PrintHintText(client, "You are already on the Infected team.");
 		return Plugin_Handled;
 	}
+	if(StrEqual(CvarGameMode,"coop")||StrEqual(CvarGameMode,"survival")||StrEqual(CvarGameMode,"realism"))
+	{
+		return Plugin_Handled;
+	}
 	
 	if(!CanClientChangeTeam(client)) return Plugin_Handled;
 	
