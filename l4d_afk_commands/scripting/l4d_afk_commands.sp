@@ -381,9 +381,7 @@ public Action:TurnClientToSurvivors(client, args)
 			}	
 		}
 		else if(StrEqual(CvarGameMode,"versus")||StrEqual(CvarGameMode,"scavenge"))
-		{
 			CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
-		}
 		else //其他未知模式
 			CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 		
