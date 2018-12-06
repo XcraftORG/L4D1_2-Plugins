@@ -4,12 +4,16 @@
 #include <sdktools>
 #include <colors>
 #define CVAR_FLAGS				FCVAR_NOTIFY
+#define IsWitch(%0) (g_bIsWitch[%0])
+#define MAXENTITIES 2048
+new		bool:	g_bIsWitch[MAXENTITIES];							// Membership testing for fast witch checking
+
 public Plugin:myinfo = 
 {
 	name = "L4D FF Announce Plugin",
 	author = "Frustian",
 	description = "Adds Friendly Fire Announcements",
-	version = "1.4",
+	version = "1.5",
 	url = ""
 }
 //cvar handles
@@ -28,17 +32,25 @@ public OnPluginStart()
 	HookEvent("player_hurt_concise", Event_HurtConcise, EventHookMode_Post);
 	directorready = FindConVar("director_ready_duration");
 	HookEvent("player_death", Event_PlayerDeath);
+	HookEvent("witch_killed", Event_WitchKilled);
+	HookEvent("witch_spawn", Event_WitchSpawn);
 }
 public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-	if (attacker == 0 ||!IsClientConnected(attacker) || !IsClientInGame(attacker) ) return;
-	
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	if ( victim == 0 || !IsClientConnected(victim)||!IsClientInGame(victim)) return;
+	
+	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	
+	if(attacker == 0 && !IsWitch(GetEventInt(event, "attackerentid")) && GetClientTeam(victim) == 2 && !IsFakeClient(victim)) //人類 自殺
+	{
+		CPrintToChatAll("{green}[提示] {olive}%N {default}曰: {lightgreen}士可殺不可辱{default}.",victim);
+	}	
+	
+	if (attacker == 0 ||!IsClientConnected(attacker) || !IsClientInGame(attacker) ) return;
 	if(GetClientTeam(attacker) == 2 ) //人類 kill
 	{
-		if(GetClientTeam(victim) == 2 && victim != attacker)//人類死亡
+		if(GetClientTeam(victim) == 2 && victim != attacker)//友傷
 			CPrintToChatAll("{green}[提示] {lightgreen}%N {default}星爆氣流斬 {olive}%N{default}.",attacker, victim);
 	}	
 }
@@ -119,4 +131,18 @@ public Action:AnnounceFF(Handle:timer, Handle:pack) //Called if the attacker did
 			DamageCache[attackerc][i] = 0;
 		}
 	}
+}
+
+public Event_WitchKilled(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	g_bIsWitch[GetEventInt(event, "witchid")] = false;
+	
+}
+public Event_WitchSpawn(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	g_bIsWitch[GetEventInt(event, "witchid")] = true;
+}
+public OnMapStart()
+{
+	for (new i = MaxClients + 1; i < MAXENTITIES; i++) g_bIsWitch[i] = false;
 }
