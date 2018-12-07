@@ -40,13 +40,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	if ( victim == 0 || !IsClientConnected(victim)||!IsClientInGame(victim)) return;
 	
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-	
-	if(attacker == 0 && !IsWitch(GetEventInt(event, "attackerentid")) && GetClientTeam(victim) == 2 && !IsFakeClient(victim)) //人類 自殺
-	{
-		CPrintToChatAll("{green}[提示] {olive}%N {default}曰: {lightgreen}士可殺不可辱{default}.",victim);
-	}	
-	
+	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));	
 	if (attacker == 0 ||!IsClientConnected(attacker) || !IsClientInGame(attacker) ) return;
 	if(GetClientTeam(attacker) == 2 ) //人類 kill
 	{
