@@ -1,3 +1,6 @@
+/*version: 1.8*/
+//修正參數沒正確改變的問題
+
 /*version: 1.7*/
 //本插件用來防止玩家換隊濫用的Bug
 //禁止期間不能閒置 亦不可按M換隊
@@ -6,7 +9,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "1.7"
+#define PLUGIN_VERSION    "1.8"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -28,7 +31,7 @@ static clientteam[MAXPLAYERS+1];//玩家換隊成功之後的隊伍
 static Handle:cvarDeadChangeTeamEnable					= INVALID_HANDLE;
 static DeadChangeTeamEnable;
 new Handle:g_hGameMode;
-new String:CvarGameMode[20];
+static String:CvarGameMode[20];
 static bool:LEFT_SAFE_ROOM;
 
 public Plugin:myinfo =
@@ -116,7 +119,12 @@ public OnPluginStart()
 	
 	g_hGameMode = FindConVar("mp_gamemode");
 	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
-	HookConVarChange(cvarDeadChangeTeamEnable, ConVarChange_CvarGameMode);
+	HookConVarChange(g_hGameMode, ConVarChange_CvarGameMode);
+}
+
+public OnMapStart()
+{
+	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
 }
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
@@ -418,6 +426,7 @@ public Action:TurnClientToInfected(client, args)
 	}
 	if(StrEqual(CvarGameMode,"coop")||StrEqual(CvarGameMode,"survival")||StrEqual(CvarGameMode,"realism"))
 	{
+		PrintToChatAll("CvarGameMode: %s",CvarGameMode);
 		return Plugin_Handled;
 	}
 	
