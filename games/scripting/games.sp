@@ -14,8 +14,6 @@ static GameCode;
 static GameCodeClient;
 static OriginalTeam[MAXPLAYERS+1];
 
-native Is_Ready_Plugin_On();
-native IsInReady();
 #define MIX_DELAY 5.0
 
 new result_int;
