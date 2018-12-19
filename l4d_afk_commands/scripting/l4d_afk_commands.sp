@@ -1,5 +1,6 @@
 /*version: 1.8*/
 //修正參數沒正確改變的問題
+//修正特感數量大於上限還是能換到特感隊伍
 
 /*version: 1.7*/
 //本插件用來防止玩家換隊濫用的Bug
@@ -322,9 +323,19 @@ public Action:TurnClientToSpectate(client, argCount)
 		clientteam[client] = 1;
 		StartChangeTeamCoolDown(client);
 	}
+	
+	if(GetClientTeam(client) == 1 && (StrEqual(CvarGameMode,"versus")||StrEqual(CvarGameMode,"scavenge")))
+	{
+		ChangeClientTeam(client, 3);
+		CreateTimer(0.1, Timer_Respectate, client, TIMER_FLAG_NO_MAPCHANGE);
+	}
 	return Plugin_Handled;
 }
 
+public Action:Timer_Respectate(Handle:timer, any:client)
+{
+	ChangeClientTeam(client, 1);
+}
 
 public Action:TurnClientToSurvivors(client, args)
 { 
@@ -422,6 +433,14 @@ public Action:TurnClientToInfected(client, args)
 	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
 		PrintHintText(client, "You are already on the Infected team.");
+		return Plugin_Handled;
+	}
+	new maxInfectedSlots = GetTeamMaxHumans(3);
+	new infectedUsedSlots = GetTeamHumanCount(3);
+	new freeInfectedSlots = (maxInfectedSlots - infectedUsedSlots);
+	if (freeInfectedSlots <= 0)
+	{
+		PrintHintText(client, "{default}[{olive}TS{default}] Infected team is full.");
 		return Plugin_Handled;
 	}
 	if(StrEqual(CvarGameMode,"coop")||StrEqual(CvarGameMode,"survival")||StrEqual(CvarGameMode,"realism"))
