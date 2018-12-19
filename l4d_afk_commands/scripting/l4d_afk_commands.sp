@@ -426,7 +426,6 @@ public Action:TurnClientToInfected(client, args)
 	}
 	if(StrEqual(CvarGameMode,"coop")||StrEqual(CvarGameMode,"survival")||StrEqual(CvarGameMode,"realism"))
 	{
-		PrintToChatAll("CvarGameMode: %s",CvarGameMode);
 		return Plugin_Handled;
 	}
 	
