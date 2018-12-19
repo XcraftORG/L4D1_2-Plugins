@@ -440,7 +440,7 @@ public Action:TurnClientToInfected(client, args)
 	new freeInfectedSlots = (maxInfectedSlots - infectedUsedSlots);
 	if (freeInfectedSlots <= 0)
 	{
-		PrintHintText(client, "{default}[{olive}TS{default}] Infected team is full.");
+		PrintHintText(client, "Infected team is full.");
 		return Plugin_Handled;
 	}
 	if(StrEqual(CvarGameMode,"coop")||StrEqual(CvarGameMode,"survival")||StrEqual(CvarGameMode,"realism"))
