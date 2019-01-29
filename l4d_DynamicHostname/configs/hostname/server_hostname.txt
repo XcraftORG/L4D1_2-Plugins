@@ -1,1 +1,1 @@
-[中文亞洲] Asia L4D 惡靈勢力中文房名
+hostname in addons/sourcemod/configs/hostname
