@@ -2,7 +2,7 @@
 #include <sdktools>
 
 #pragma semicolon 1
-#define PLUGIN_VERSION "1.3"
+#define PLUGIN_VERSION "1.5"
 
 #define		DN_TAG		"[DHostName]"
 #define		SYMBOL_LEFT		'('
@@ -21,6 +21,7 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
+	g_hReadyUp = CreateConVar("l4d_current_mode", "", "League notice displayed on server name", FCVAR_SPONLY | FCVAR_NOTIFY);
 	g_hHostName	= FindConVar("hostname");
 	GetConVarString(g_hHostName, g_sDefaultN, sizeof(g_sDefaultN));
 	if (strlen(g_sDefaultN))//strlen():回傳字串的長度
@@ -32,10 +33,10 @@ public OnConfigsExecuted()
 	if (!strlen(g_sDefaultN)) return;
 		
 
-	if ((g_hReadyUp = FindConVar("l4d_ready_league_notice")) == INVALID_HANDLE){
+	if (g_hReadyUp == INVALID_HANDLE){
 	
 		ChangeServerName();
-		LogMessage("l4d_ready_league_notice no found!");
+		LogMessage("l4d_current_mode no found!");
 	}
 	else {
 	
@@ -50,7 +51,7 @@ public OnConfigsExecuted()
 ChangeServerName(String:sReadyUpCfgName[] = "")
 {
 
-        decl String:sPath[PLATFORM_MAX_PATH];
+        new String:sPath[PLATFORM_MAX_PATH];
         BuildPath(Path_SM, sPath, sizeof(sPath),"configs/hostname/server_hostname.txt");//檔案路徑設定
         
         new Handle:file = OpenFile(sPath, "r");//讀取檔案
@@ -60,14 +61,14 @@ ChangeServerName(String:sReadyUpCfgName[] = "")
 			return;
 		}
         
-        decl String:readData[256];
+        new String:readData[256];
         if(!IsEndOfFile(file) && ReadFileLine(file, readData, sizeof(readData)))//讀一行
         {
 			decl String:sNewName[128];
 			if(strlen(sReadyUpCfgName) == 0)
 				Format(sNewName, sizeof(sNewName), "%s", readData);
 			else
-				Format(sNewName, sizeof(sNewName), "%s%c%s%c", readData, SYMBOL_LEFT, sReadyUpCfgName, SYMBOL_RIGHT);//房名"中文名(目前模式)"
+				Format(sNewName, sizeof(sNewName), "%s%c%s%c", readData, SYMBOL_LEFT, sReadyUpCfgName, SYMBOL_RIGHT);
 			
 			SetConVarString(g_hHostName,sNewName);
 			LogMessage("%s New server name \"%s\"", DN_TAG, sNewName);
