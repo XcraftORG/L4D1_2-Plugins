@@ -1,6 +1,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <colors>
+#include <l4d_lib>
 
 
 #define PLUGIN_VERSION "1.2"
@@ -14,6 +15,8 @@ static GameCode;
 static GameCodeClient;
 static OriginalTeam[MAXPLAYERS+1];
 
+native Is_Ready_Plugin_On();
+native IsInReady();
 #define MIX_DELAY 5.0
 
 new result_int;
@@ -43,6 +46,7 @@ public OnPluginStart()
 	RegConsoleCmd("sm_roll", Game_Roll);
 	RegConsoleCmd("sm_picknumber", Game_Roll);
 	RegConsoleCmd("sm_code", Game_Code);
+	RegConsoleCmd("sm_random", Game_RandomTeam);
 	HookEvent("round_start", Event_Round_Start);
 	RegConsoleCmd("sm_coinflip", Command_Coinflip);
 	RegConsoleCmd("sm_coin", Command_Coinflip);
@@ -76,30 +80,106 @@ public Action:Command_Coinflip(client, args)
 		result_int = GetURandomInt() % 2; // Gets a random integer and checks to see whether it's odd or even
 		GetClientName(client, client_name, sizeof(client_name)); // Gets the client_name of the person using the command
 		
-		new iTeam = GetClientTeam(client);
 		if(result_int == 0){
-			for (new i = 1; i <= MaxClients; i++)
-			{
-				if (IsClientConnected(i) && IsClientInGame(i)&& !IsFakeClient(i) && GetClientTeam(i) == iTeam)
-					CPrintToChat(i,"[{green}決鬥!{default}] {olive}%s{default} flipped a coin!. It's {green}Heads{default}!",client_name); // Here \x04 is actually yellow
-			}
+			CPrintToChatAll("[{green}Dual!{default}] {olive}%s{default} flipped a coin!. It's {green}Heads{default}!",client_name); // Here \x04 is actually yellow
 		}
 		else{
-			for (new i = 1; i <= MaxClients; i++)
-			{
-				if (IsClientConnected(i) && IsClientInGame(i)&& !IsFakeClient(i) && GetClientTeam(i) == iTeam)
-					CPrintToChat(i,"[{green}決鬥!{default}] {olive}%s{default} flipped a coin!. It's {green}Tails{default}!",client_name); // Here \x04 is actually yellow
-			}
+			CPrintToChatAll("[{green}Dual!{default}] {olive}%s{default} flipped a coin!. It's {green}Tails{default}!",client_name); // Here \x04 is actually yellow
 		}
 		
 		previous_timeC = current_timeC; // Update the previous time
 	}
 	else
 	{
-		ReplyToCommand(client, "[決鬥!] Whoa there buddy, slow down. Wait at least %d seconds.", GetConVarInt(delay_time));
+		ReplyToCommand(client, "[Dual!] Whoa there buddy, slow down. Wait at least %d seconds.", GetConVarInt(delay_time));
 	}
 	
 	return Plugin_Handled;
+}
+
+public Action:Game_RandomTeam(client, args)
+{
+	if (client == 0)
+	{
+		PrintToServer("[Mix] sm_random cannot be used by server.");
+		return Plugin_Handled;
+	}
+	if(GetClientTeam(client) != 1)
+	{
+		ReplyToCommand(client, "[Mix] 你得先旁觀. (You must spec first)");	
+		return Plugin_Handled;
+	}
+	new SSlots = GetTeamMaxHumans(2);
+	new SUsedSlots = GetTeamHumanCount(2);
+	new SfreeSlots = (SSlots - SUsedSlots);
+	new ISlots = GetTeamMaxHumans(3);
+	new IUsedSlots = GetTeamHumanCount(3);
+	new IfreeSlots = (ISlots - IUsedSlots);
+	if (SfreeSlots <= 0 && IfreeSlots <= 0)
+	{
+		CPrintToChat(client, "[{olive}TS{default}] All teams are full.");
+		return Plugin_Handled;
+	}
+	else if (SfreeSlots <= 0)
+	{
+		//CPrintToChat(client, "[{green}Mix{default}] Survivor team is full.");
+		ChangeClientTeam(client, 3);
+		CPrintToChat(client,"[{olive}TS{default}] Choose Random team for you!");
+		return Plugin_Handled;
+	}
+	else if (IfreeSlots <= 0)
+	{
+		//CPrintToChat(client, "[{green}Mix{default}] Infected team is full.");
+		new bot;
+		
+		for(bot = 1; 
+			bot < (MaxClients + 1) && (!IsClientConnected(bot) || !IsFakeClient(bot) || (GetClientTeam(bot) != 2));
+			bot++) {}
+		
+		if(bot == (MaxClients + 1))
+		{			
+			new String:command[] = "sb_add";
+			new flags = GetCommandFlags(command);
+			SetCommandFlags(command, flags & ~FCVAR_CHEAT);
+			
+			ServerCommand("sb_add");
+			
+			SetCommandFlags(command, flags);
+		}
+		CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
+		CPrintToChat(client,"[{olive}TS{default}] Choose Random team for you!");
+		return Plugin_Handled;
+	}
+	
+	new newteam = GetRandomInt(2, 3);
+	if(newteam == 2)
+	{
+		new bot;
+		
+		for(bot = 1; 
+			bot < (MaxClients + 1) && (!IsClientConnected(bot) || !IsFakeClient(bot) || (GetClientTeam(bot) != 2));
+			bot++) {}
+		
+		if(bot == (MaxClients + 1))
+		{			
+			new String:command[] = "sb_add";
+			new flags = GetCommandFlags(command);
+			SetCommandFlags(command, flags & ~FCVAR_CHEAT);
+			
+			ServerCommand("sb_add");
+			
+			SetCommandFlags(command, flags);
+		}
+		CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
+		CPrintToChat(client,"[{olive}TS{default}] Choose Random team for you!");
+		return Plugin_Handled;
+	}
+	else
+	{
+		ChangeClientTeam(client, 3);
+		CPrintToChat(client,"[{olive}TS{default}] Choose Random team for you!");
+		return Plugin_Handled;
+	}
 }
 
 public Action:Game_Say(client, args)
@@ -123,7 +203,7 @@ public Action:Game_Say(client, args)
 			for (new i = 1; i <= MaxClients; i++)
 			{
 				if (IsClientConnected(i) && IsClientInGame(i)&& !IsFakeClient(i) && GetClientTeam(i) == iTeam)
-					CPrintToChat(i,"[{green}決鬥!{default}] BINGO! {olive}%N {default}has guessed the right {olive}%N{default}'s code:{lightgreen} %d{default}. Cheer!",client,GameCodeClient,result);
+					CPrintToChat(i,"[{green}Dual!{default}] BINGO! {olive}%N {default}has guessed the right {olive}%N{default}'s code:{lightgreen} %d{default}. Cheer!",client,GameCodeClient,result);
 			}
 			GameCodeLock = false;
 		}
@@ -131,7 +211,7 @@ public Action:Game_Say(client, args)
 			for (new i = 1; i <= MaxClients; i++)
 			{
 				if (IsClientConnected(i) && IsClientInGame(i)&& !IsFakeClient(i) && GetClientTeam(i) == iTeam)
-					CPrintToChat(i,"[{green}決鬥!{default}] {olive}%N {default}guessed {green}%d{default}. Code is greater than{default} it.",client,result);
+					CPrintToChat(i,"[{green}Dual!{default}] {olive}%N {default}guessed {green}%d{default}. Code is greater than{default} it.",client,result);
 			}
 		}
 		else if(result > GameCode)
@@ -139,7 +219,7 @@ public Action:Game_Say(client, args)
 			for (new i = 1; i <= MaxClients; i++)
 			{
 				if (IsClientConnected(i) && IsClientInGame(i)&& !IsFakeClient(i) && GetClientTeam(i) == iTeam)
-					CPrintToChat(i,"[{green}決鬥!{default}] {olive}%N {default}guessed {green}%d{default}. Code is less than {default}it.",client,result);
+					CPrintToChat(i,"[{green}Dual!{default}] {olive}%N {default}guessed {green}%d{default}. Code is less than {default}it.",client,result);
 			}
 		}
 		return Plugin_Handled;
@@ -151,22 +231,22 @@ public Action:Game_Code(client, args)
 {
 	if (client == 0)
 	{
-		PrintToServer("[決鬥!] sm_code cannot be used by server.");
+		PrintToServer("[Dual!] sm_code cannot be used by server.");
 		return Plugin_Handled;
 	}
 	if(GameCodeLock)
 	{
-		ReplyToCommand(client, "[決鬥!] Someone has chosen a Da Vinci Code. Figure it out first!");		
+		ReplyToCommand(client, "[Dual!] Someone has chosen a Da Vinci Code. Figure it out first!");		
 		return Plugin_Handled;
 	}
 	if(args < 1)
 	{
-		ReplyToCommand(client, "[決鬥!] Usage: sm_code <0-100000> - Play a Da Vinci Code.");		
+		ReplyToCommand(client, "[Dual!] Usage: sm_code <0-100000> - Play a Da Vinci Code.");		
 		return Plugin_Handled;
 	}
 	if(args > 1)
 	{
-		ReplyToCommand(client, "[決鬥!] Usage: sm_code <0-100000> - Play a Da Vinci Code.");		
+		ReplyToCommand(client, "[Dual!] Usage: sm_code <0-100000> - Play a Da Vinci Code.");		
 		return Plugin_Handled;
 	}
 	
@@ -178,23 +258,23 @@ public Action:Game_Code(client, args)
 		GameCode = StringToInt(arg1);
 		if(GameCode > 100000|| GameCode < 0)
 		{
-			ReplyToCommand(client, "[決鬥!] Usage: sm_code <0-100000> - Play a Da Vinci Code.");
+			ReplyToCommand(client, "[Dual!] Usage: sm_code <0-100000> - Play a Da Vinci Code.");
 			return Plugin_Handled;
 		}
 		
 		GameCodeClient = client;
-		CPrintToChat(client,"[{green}決鬥!{default}] {default}You choose {lightgreen}%d{default} as code.",GameCode);
+		CPrintToChat(client,"[{green}Dual!{default}] {default}You choose {lightgreen}%d{default} as code.",GameCode);
 		for (new i = 1; i <= MaxClients; i++)
 		{
 			if (IsClientConnected(i) && IsClientInGame(i)&& !IsFakeClient(i) && GetClientTeam(i) == iTeam)
-				CPrintToChat(i,"[{green}決鬥!{default}] {olive}%N {default}has chosen a {green}Da Vinci Code{default}. Anyone Wants to guess it ?",client);
+				CPrintToChat(i,"[{green}Dual!{default}] {olive}%N {default}has chosen a {green}Da Vinci Code{default}. Anyone Wants to guess it ?",client);
 		}
 		GameCodeLock = true;
 		return Plugin_Handled;
 	}
 	else
 	{
-		ReplyToCommand(client, "[決鬥!] Usage: sm_code <0-100000> - Play a Da Vinci Code.");
+		ReplyToCommand(client, "[Dual!] Usage: sm_code <0-100000> - Play a Da Vinci Code.");
 		return Plugin_Handled;
 	}
 }
@@ -203,7 +283,7 @@ public Action:Game_Roll(client, args)
 {
 	if (client == 0)
 	{
-		PrintToServer("[決鬥!] sm_roll/sm_picknumber cannot be used by server.");
+		PrintToServer("[Dual!] sm_roll/sm_picknumber cannot be used by server.");
 		return Plugin_Handled;
 	}
 	if(args < 1)
@@ -212,24 +292,19 @@ public Action:Game_Roll(client, args)
 		if((current_timeN - previous_timeN) > GetConVarInt(delay_time)) // Only perform a numberpick if enough time has passed since the last one.
 		{
 			current_timeN = GetTime();
-			new iTeam = GetClientTeam(client);
 			new result = GetRandomInt(1, number_max);
-			for (new i = 1; i <= MaxClients; i++)
-			{
-				if (IsClientConnected(i) && IsClientInGame(i)&& !IsFakeClient(i) && GetClientTeam(i) == iTeam)
-					CPrintToChat(i,"[{green}決鬥!{default}] {olive}%N {default}rolled a {lightgreen}%d {default}sided die!. It's {green}%d{default}!",client,number_max,result);
-			}
+			CPrintToChatAll("[{green}Dual!{default}] {olive}%N {default}rolled a {lightgreen}%d {default}sided die!. It's {green}%d{default}!",client,number_max,result);
 			previous_timeN = current_timeN; // Update the previous time
 		}
 		else
 		{
-			ReplyToCommand(client, "[決鬥!] Whoa there buddy, slow down. Wait at least %d seconds.", GetConVarInt(delay_time));
+			ReplyToCommand(client, "[Dual!] Whoa there buddy, slow down. Wait at least %d seconds.", GetConVarInt(delay_time));
 		}	
 		return Plugin_Handled;
 	}
 	if(args > 1)
 	{
-		ReplyToCommand(client, "[決鬥!] Usage: sm_roll/sm_picknumber <Integer> - Play a Integer-sided dice.");		
+		ReplyToCommand(client, "[Dual!] Usage: sm_roll/sm_picknumber <Integer> - Play a Integer-sided dice.");		
 		return Plugin_Handled;
 	}
 	
@@ -241,31 +316,26 @@ public Action:Game_Roll(client, args)
 		
 		if((current_timeN - previous_timeN) > GetConVarInt(delay_time)) // Only perform a numberpick if enough time has passed since the last one.
 		{
-			new iTeam = GetClientTeam(client);
 			new side = StringToInt(arg1);
 			if(side <= 0)
 			{
-				ReplyToCommand(client, "[決鬥!] Usage: sm_roll/sm_picknumber <Integer> - Play a Integer-sided dice.");	
+				ReplyToCommand(client, "[Dual!] Usage: sm_roll/sm_picknumber <Integer> - Play a Integer-sided dice.");	
 				return Plugin_Handled;
 			}
 			
 			new result = GetRandomInt(1, side);
-			for (new i = 1; i <= MaxClients; i++)
-			{
-				if (IsClientConnected(i) && IsClientInGame(i)&& !IsFakeClient(i) && GetClientTeam(i) == iTeam)
-					CPrintToChat(i,"[{green}決鬥!{default}] {olive}%N {default}rolled a {lightgreen}%d {default}sided die!. It's {green}%d{default}!",client,side,result);
-			}
+			CPrintToChatAll("[{green}Dual!{default}] {olive}%N {default}rolled a {lightgreen}%d {default}sided die!. It's {green}%d{default}!",client,side,result);
 			previous_timeN = current_timeN; // Update the previous time
 		}
 		else
 		{
-			ReplyToCommand(client, "[決鬥!] Whoa there buddy, slow down. Wait at least %d seconds.", GetConVarInt(delay_time));
+			ReplyToCommand(client, "[Dual!] Whoa there buddy, slow down. Wait at least %d seconds.", GetConVarInt(delay_time));
 		}
 		return Plugin_Handled;
 	}
 	else
 	{
-		ReplyToCommand(client, "[決鬥!] Usage: sm_roll/sm_picknumber <Integer> - Play a Integer-sided dice.");
+		ReplyToCommand(client, "[Dual!] Usage: sm_roll/sm_picknumber <Integer> - Play a Integer-sided dice.");
 		return Plugin_Handled;
 	}
 }
@@ -280,6 +350,40 @@ public bool:IsInteger(String:buffer[])
     }
 
     return true;    
+}
+
+stock GetTeamMaxHumans(team)
+{
+	if(team == 2)
+	{
+		return GetConVarInt(FindConVar("survivor_limit"));
+	}
+	else if(team == 3)
+	{
+		return GetConVarInt(FindConVar("z_max_player_zombies"));
+	}
+	
+	return -1;
+}
+
+stock GetTeamHumanCount(team)
+{
+	new humans = 0;
+	
+	new i;
+	for(i = 1; i < (MaxClients + 1); i++)
+	{
+		if(IsClientInGameHuman(i) && GetClientTeam(i) == team)
+		{
+			humans++;
+		}
+	}
+	
+	return humans;
+}
+bool:IsClientInGameHuman(client)
+{
+	return IsClientInGame(client) && !IsFakeClient(client) && ((GetClientTeam(client) == L4D_TEAM_SURVIVORS || GetClientTeam(client) == L4D_TEAM_INFECTED));
 }
 
 public Action:Survivor_Take_Control(Handle:timer, any:client)
