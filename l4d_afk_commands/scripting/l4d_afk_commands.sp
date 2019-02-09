@@ -1,3 +1,6 @@
+/*version: 1.9*/
+//修正出安全門無法換隊
+
 /*version: 1.8*/
 //修正參數沒正確改變的問題
 //修正特感數量大於上限還是能換到特感隊伍
@@ -10,7 +13,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "1.8"
+#define PLUGIN_VERSION    "1.9"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -110,7 +113,6 @@ public OnPluginStart()
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_death",		Event_PlayerDeath);
 	HookEvent("player_team", Event_PlayerChangeTeam);
-	HookEvent("player_left_start_area", Event_PlayerLeftStartArea, EventHookMode_Post);
 	
 	//HookEvent("player_bot_replace", OnPlayerBotReplace);
 
@@ -235,11 +237,6 @@ public Action:Event_PlayerChangeTeam(Handle:event, const String:name[], bool:don
 	CreateTimer(0.1, ClientReallyChangeTeam, client, _); // check delay
 }
 
-public Action:Event_PlayerLeftStartArea(Handle:event, String:name[], bool:dontBroadcast)
-{
-	LEFT_SAFE_ROOM = true;
-}
-
 public ConVarChange_cvarCoolTime(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	CheckSpectatePenalty();
@@ -265,8 +262,17 @@ static CheckSpectatePenalty()
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	Clear();
+	CreateTimer(1.0, PlayerLeftStart, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
-
+public Action:PlayerLeftStart(Handle:Timer)
+{
+	if (LeftStartArea())
+	{
+		LEFT_SAFE_ROOM = true;
+		return Plugin_Handled;
+	}
+	return Plugin_Continue; 
+}
 Clear(client = -1)
 {
 	if(client == -1)
@@ -323,8 +329,7 @@ public Action:TurnClientToSpectate(client, argCount)
 		clientteam[client] = 1;
 		StartChangeTeamCoolDown(client);
 	}
-	
-	if(GetClientTeam(client) == 1 && (StrEqual(CvarGameMode,"versus")||StrEqual(CvarGameMode,"scavenge")))
+	else if(GetClientTeam(client) == 1 && (StrEqual(CvarGameMode,"versus")||StrEqual(CvarGameMode,"scavenge")))
 	{
 		ChangeClientTeam(client, 3);
 		CreateTimer(0.1, Timer_Respectate, client, TIMER_FLAG_NO_MAPCHANGE);
@@ -800,4 +805,32 @@ public Action:Timer_CanJoin(Handle:timer, any:client)
 	
 	
 	return Plugin_Continue;
+}
+
+bool:LeftStartArea()
+{
+	new ent = -1, maxents = GetMaxEntities();
+	for (new i = MaxClients+1; i <= maxents; i++)
+	{
+		if (IsValidEntity(i))
+		{
+			decl String:netclass[64];
+			GetEntityNetClass(i, netclass, sizeof(netclass));
+			
+			if (StrEqual(netclass, "CTerrorPlayerResource"))
+			{
+				ent = i;
+				break;
+			}
+		}
+	}
+	
+	if (ent > -1)
+	{
+		if (GetEntProp(ent, Prop_Send, "m_hasAnySurvivorLeftSafeArea"))
+		{
+			return true;
+		}
+	}
+	return false;
 }
