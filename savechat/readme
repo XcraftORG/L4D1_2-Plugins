@@ -1,4 +1,7 @@
 Records player chat messages to a file
 
--cfg-
-chat_day_month_year.txt in -left4dead\addons\sourcemod\logs\chat
+-file-
+chat_year_month_day.txt in -left4dead\addons\sourcemod\logs\chat
+
+-command-
+"sc_record_detail", "1", "Record player Steam ID and IP address"
