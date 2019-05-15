@@ -6,6 +6,7 @@
 * <b>games</b>: Let's play a game, Duel 決鬥!!
 * <b>l4dffannounce</b>: Adds Friendly Fire Announcements (who kills teammates)
 * <b>savechat</b>: Records player chat messages to a file
+* <b>gametype_description</b>: Change Game type in server list
 # Scripting Compiler
 using sourcemod 1.8 Compiler
 * <b>[colors.inc](https://forums.alliedmods.net/showthread.php?t=96831)</b>
