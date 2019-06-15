@@ -24,7 +24,7 @@ Download and play one random music on map start/round start
 	-Put them in the correct folder ("Left 4 Dead Dedicated Server\left4dead" or "Left 4 Dead 2 Dedicated Server\left4dead2" folder depending on your game).
 	-Copy YOUR MP3 files to sound/valentine folder.
 	-Run (double-click) sound/valentine/create_list.bat file.
-		*it will automatically create a txt file named "music_mapstart.txt" in sourcemod\data\
+		*it will automatically create a txt file named "music_mapstart.txt" in sourcemod\data folder
 		
 3.Setup server to work with downloadable content
 	*ConVars in your cfg/server.cfg should be:
@@ -38,7 +38,7 @@ Download and play one random music on map start/round start
 4.Uploading files to server.
 	-Upload "sound" folder to content-server
 		*If you are l4d1,your-content-server.com/game/left4dead/sound/valentine/ <= here is your *.mp3 files
-		*If you are l4d2,your-content-server.com/game/left4dead2/sound/valentine/ <= here is your *.mp3.bz2 files
+		*If you are l4d2,your-content-server.com/game/left4dead2/sound/valentine/ <= here is your *.mp3 files
 	-Upload "sound" folder to basic server.
 	
 -command-
