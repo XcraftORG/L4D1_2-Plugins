@@ -96,7 +96,6 @@ char g_sListPath[PLATFORM_MAX_PATH];
 ConVar g_hCvarEnable;
 ConVar g_hCvarDelay;
 ConVar g_hCvarShowMenu;
-
 bool g_bEnabled;
 
 public void OnPluginStart()
@@ -396,7 +395,6 @@ public void OnMapStart()
 		g_SoundPath.GetString(g_iSndIdx, sSoundPath, sizeof(sSoundPath));
 		Format(sDLPath, sizeof(sDLPath), "sound/%s", sSoundPath);
 		AddFileToDownloadsTable(sDLPath);
-		LogMessage("--------------------------%s",sDLPath);
 		PrecacheSound(sSoundPath);
 	#endif
 }
