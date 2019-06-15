@@ -2,6 +2,10 @@
 
 /*
 	ChangeLog:
+	0.5 (16-6-2019)
+	 - say !mp3off to turn off music for some people who don't like it
+	 - say !mp3on to turn on music for some people who don't like it
+	
 	0.4 (15-6-2019)
 	 - playing music to all client when first round and second round start.
 	 - delete auto exec config (some people prefer that, but I don't like it)
@@ -97,6 +101,7 @@ ConVar g_hCvarEnable;
 ConVar g_hCvarDelay;
 ConVar g_hCvarShowMenu;
 bool g_bEnabled;
+static bool IsClientMuteMp3[MAXPLAYERS+1];
 
 public void OnPluginStart()
 {
@@ -111,6 +116,8 @@ public void OnPluginStart()
 	
 	RegConsoleCmd("sm_music", 			Cmd_Music, 			"Player menu");
 	RegConsoleCmd("sm_music_update", 	Cmd_MusicUpdate, 	"Populate music list from config");
+	RegConsoleCmd("say", Command_Say);
+	RegConsoleCmd("say_team", Command_Say);
 
 	g_SoundPath = new ArrayList(ByteCountToCells(PLATFORM_MAX_PATH));
 	
@@ -122,13 +129,42 @@ public void OnPluginStart()
 	HookConVarChange(g_hCvarEnable,				ConVarChanged);
 	GetCvars();
 	
-	for (int i = 1; i <= MaxClients; i++)
-		g_fSoundVolume[i] = 1.0;
+	for (int j = 1; j <= MaxClients; j++)
+	{
+		g_fSoundVolume[j] = 1.0;
+		IsClientMuteMp3[j] = false;
+	}
 		
 	SetRandomSeed(GetTime());
 	
 	if(g_Engine == Engine_Left4Dead)
 		OnMapStart();
+}
+
+public Action Command_Say(int client, int args)
+{
+	if(args < 1)
+	{
+		return Plugin_Continue;
+	}
+	char sayWord[MAX_NAME_LENGTH];
+	GetCmdArg(1, sayWord, sizeof(sayWord));
+	
+	if(StrEqual(sayWord, "!mp3off", true)||StrEqual(sayWord, "/mp3off", true))
+	{
+		IsClientMuteMp3[client] = true;
+		PrintToChat(client,Translate(client, "%t", "UnMute"));
+		return Plugin_Handled;
+	}
+	
+	if(StrEqual(sayWord, "!mp3on", true)||StrEqual(sayWord, "/mp3on", true))
+	{
+		IsClientMuteMp3[client] = false;
+		PrintToChat(client,Translate(client, "%t", "Mute"));
+		return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
 }
 
 public void ConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -244,18 +280,19 @@ public Action Timer_PlayMusic(Handle timer)
 	
 	char sPath[PLATFORM_MAX_PATH];
 	g_SoundPath.GetString(g_iSndIdx, sPath, sizeof(sPath));
-	for (int i = 1; i <= MaxClients; i++) 
-		if (IsClientConnected(i)&&IsClientInGame(i)&&!IsFakeClient(i))
+	for (int j = 1; j <= MaxClients; j++) 
+		if (IsClientConnected(j)&&IsClientInGame(j)&&!IsFakeClient(j)&&!IsClientMuteMp3[j])
 		{
-			EmitSoundCustom(i, sPath);
+			EmitSoundCustom(j, sPath);
+			PrintToChat(j,Translate(j, "%t", "Mute"));
 			if (g_hCvarShowMenu.BoolValue)
-				ShowMusicMenu(i);
+				ShowMusicMenu(j);
 		}
 }
 public Action Timer_PlayMusicCleint(Handle timer,int client)
 {
 	
-	if (IsClientConnected(client)&&IsClientInGame(client)&&!IsFakeClient(client))
+	if (IsClientConnected(client)&&IsClientInGame(client)&&!IsFakeClient(client)&&!IsClientMuteMp3[client])
 	{
 		char sPath[PLATFORM_MAX_PATH];
 		g_SoundPath.GetString(g_iSndIdx, sPath, sizeof(sPath));

@@ -2,6 +2,10 @@ Download and play one random music on map start/round start
 [Original project from Dragokasm](https://forums.alliedmods.net/showthread.php?p=2644771)
 
 -ChangeLog-
+	0.5 (16-6-2019)
+	 - say !mp3off to turn off music for some people who don't like it
+	 - say !mp3on to turn on music for some people who don't like it
+	 
 	0.4 (15-6-2019)
 	 - playing music to all client when first round and second round start.
 	 - delete auto exec config (some people prefer that, but I don't like it)

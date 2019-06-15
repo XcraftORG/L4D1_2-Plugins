@@ -50,4 +50,18 @@
 		"chi"		"下个音乐"
 		"zho"		"下個音樂"
 	}
+	"Mute"
+	{
+		"en"		"[Music] type !mp3off to mute round start music"
+		"ru"		"[Музыка]введите !mp3off, чтобы отключить музыку всегда"
+		"chi"		"[回合音乐] 输入!mp3off 关闭回合音乐"
+		"zho"		"[回合音樂] 輸入!mp3off 關閉回合音樂"
+	}
+	"UnMute"
+	{
+		"en"		"[Music] type !mp3on to unmute round start music"
+		"ru"		"[Музыка] Введите !mp3on, чтобы включить музыку"
+		"chi"		"[回合音乐] 输入!mp3on 开启回合音乐"
+		"zho"		"[回合音樂] 輸入!mp3on 開啟回合音樂"
+	}
 }
