@@ -1,0 +1,53 @@
+"Phrases"
+{
+    "Congratulation1"
+	{
+		"en"		"Dear friends!"
+		"ru"		"Дорогие друзья!"
+	}
+	"Congratulation2"
+	{
+		"en"		"Happy Valentine's Day!"
+		"ru"		"Поздравляем с Днём святого Валентина!"
+	}
+	"Congratulation3"
+	{
+		"en"		"Love and be loved!"
+		"ru"		"Любите и будьте любимыми!"
+	}
+	"StopMusic"
+	{
+		"en"		"Stop music"
+		"ru"		"Остановить музыку"
+		"chi"		"停止音樂"
+		"zho"		"停止音乐"
+	}
+	"PlayAgain"
+	{
+		"en"		"Play music again"
+		"ru"		"Играть музыку ещё раз"
+		"chi"		"再播放一次"
+		"zho"		"再播放一次"
+	}
+	"Volume"
+	{
+		"en"		"Volume"
+		"ru"		"Громкость"
+		"chi"		"音量"
+		"zho"		"音量"
+	}
+	"NextVolume"
+	{
+		"en"		"Volume for the next track:"
+		"ru"		"Громкость для следующего трека:"
+		"chi"		"下個音樂音量:"
+		"zho"		"下个音乐音量："
+	}
+	"GoNext"
+	{
+		"en"		"Next track"
+		"ru"		"Следующий трек"
+		"chi"		"下個音樂"
+		"zho"		"下个音乐"
+	}
+}
