@@ -49,7 +49,7 @@ Admin-Flag required: Custom3
 2.Preparation the list
 	-Download all files(addons and materials).
 	-Put them in the correct folder ("Left 4 Dead Dedicated Server\left4dead" or "Left 4 Dead 2 Dedicated Server\left4dead2" folder depending on your game).
-	-Copy YOUR vtf files to the materials/decals/custom/TS_SERVER directory, at least they should be in materials, otherwise it won't work. Edit your .vmt file with a text editor if neccesary, to change the path to the .vmt file.
+	-Copy YOUR vtf files to the materials/decals/TS_SERVER directory, at least they should be in materials, otherwise it won't work. Edit your .vmt file with a text editor if neccesary, to change the path to the .vmt file.
     -Add the path of the decal to the main config file decal.cfg. The path has to be put relative to the materials folder, and without the file extension.
 	
 3.Setup server to work with downloadable content
@@ -63,8 +63,8 @@ Admin-Flag required: Custom3
 	
 4.Uploading files to server.
 	-Upload "materials" folder to content-server
-		*If you are l4d1,your-content-server.com/game/left4dead/materials/decals/custom/TS_SERVER/ <= here is your *.vtf.bz2 files
-		*If you are l4d2,your-content-server.com/game/left4dead2/materials/decals/custom/TS_SERVER/ <= here is your *.vtf.bz2 files
+		*If you are l4d1,your-content-server.com/game/left4dead/materials/decals/TS_SERVER/ <= here is your *.vtf.bz2 files
+		*If you are l4d2,your-content-server.com/game/left4dead2/materials/decals/TS_SERVER/ <= here is your *.vtf.bz2 files
 	-Upload "materials" folder to basic server.
 	-Upload "materials" folder to your client's game folder (for test reasons).
 	
