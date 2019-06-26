@@ -13,7 +13,7 @@ Download and play one random music on map start/round start
 -How to play custom music-
 1.Preparation of MP3 files
 	*file names
-	-Ensure noone file has special characters like "long dash" (–) or so.
+	-Ensure noone file has space or special characters like "long dash" (–) or so.
 
 	*sample rate
 	-All MP3 files must be encoded in 44100 Hz sample rate, otherwise it may not play at all.
