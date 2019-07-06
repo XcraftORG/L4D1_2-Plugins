@@ -1,0 +1,5 @@
+Voice Announce. Print To Center Message who Speaking. With cookies
+
+-command-
+"va_spectator_speaklist", "1", "Enable speaklist for spectators default? [1-Enable/0-Disable]"
+"va_default_speaklist", "1", "Enable speaklist when sv_alltalk on? [1-Enable/0-Disable]"
