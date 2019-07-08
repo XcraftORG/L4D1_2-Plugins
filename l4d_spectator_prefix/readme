@@ -1,0 +1,4 @@
+when player in spec team, add prefix
+
+-Convars-
+CreateConVar("sp_prefix_type", "(Spec)", "Determine your preferred type of Spectator Prefix"
