@@ -20,7 +20,7 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	g_hPrefixType = CreateConVar("sp_prefix_type", "(Spec)", "Determine your preferred type of Spectator Prefix");
+	g_hPrefixType = CreateConVar("sp_prefix_type", "(S)", "Determine your preferred type of Spectator Prefix");
 	GetConVarString(g_hPrefixType, g_sPrefixType, sizeof(g_sPrefixType));
 	HookConVarChange(g_hPrefixType, ConVarChange_PrefixType);
 	
@@ -36,7 +36,7 @@ public ConVarChange_PrefixType(Handle:convar, const String:oldValue[], const Str
 public Action:Event_NameChanged(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	CreateTimer(1.0,PlayerNameCheck,client,TIMER_FLAG_NO_MAPCHANGE);//延遲一秒檢查
+	CreateTimer(0.8,PlayerNameCheck,client,TIMER_FLAG_NO_MAPCHANGE);//延遲一秒檢查
 
 	return Plugin_Continue;
 }
@@ -44,7 +44,7 @@ public Action:Event_NameChanged(Handle:event, const String:name[], bool:dontBroa
 public Action:Event_PlayerTeam(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	CreateTimer(1.0,PlayerNameCheck,client,TIMER_FLAG_NO_MAPCHANGE);//延遲一秒檢查
+	CreateTimer(0.8,PlayerNameCheck,client,TIMER_FLAG_NO_MAPCHANGE);//延遲一秒檢查
 
 	return Plugin_Continue;
 }
@@ -65,7 +65,7 @@ public Action:PlayerNameCheck(Handle:timer,any:client)
 			if(!CheckClientHasPreFix(sOldname))
 			{
 				Format(sNewname, sizeof(sNewname), "%s%s", g_sPrefixType, sOldname);
-				SetClientName(client, sNewname);
+				CS_SetClientName(client, sNewname);
 				
 				//PrintToChatAll("sNewname: %s",sNewname);
 			}
@@ -76,7 +76,7 @@ public Action:PlayerNameCheck(Handle:timer,any:client)
 			{
 				ReplaceString(sOldname, sizeof(sOldname), g_sPrefixType, "", true);
 				strcopy(sNewname,sizeof(sOldname),sOldname);
-				SetClientName(client, sNewname);
+				CS_SetClientName(client, sNewname);
 				
 				//PrintToChatAll("sNewname: %s",sNewname);
 			}
@@ -110,3 +110,36 @@ bool:CheckClientHasPreFix(const String:sOldname[])
 	return true;
 }
 
+stock CS_SetClientName(client, const String:name[], bool:silent=false)
+{
+    decl String:oldname[MAX_NAME_LENGTH];
+    GetClientName(client, oldname, sizeof(oldname));
+
+    SetClientInfo(client, "name", name);
+    SetEntPropString(client, Prop_Data, "m_szNetname", name);
+
+    new Handle:event = CreateEvent("player_changename");
+
+    if (event != INVALID_HANDLE)
+    {
+        SetEventInt(event, "userid", GetClientUserId(client));
+        SetEventString(event, "oldname", oldname);
+        SetEventString(event, "newname", name);
+        FireEvent(event);
+    }
+
+    if (silent)
+        return;
+    
+    new Handle:msg = StartMessageAll("SayText2");
+
+    if (msg != INVALID_HANDLE)
+    {
+        BfWriteByte(msg, client);
+        BfWriteByte(msg, true);
+        BfWriteString(msg, "#Cstrike_Name_Change");
+        BfWriteString(msg, oldname);
+        BfWriteString(msg, name);
+        EndMessage();
+    }
+}

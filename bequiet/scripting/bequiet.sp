@@ -1,14 +1,13 @@
 #include <sourcemod>
 #include <sdktools>
-#include <basecomm>
 
 public Plugin:myinfo = 
 {
 	name = "BeQuiet",
 	author = "Sir & Harry Potter",
 	description = "Please be Quiet! Block unnecessary chat or announcement",
-	version = "1.4",
-	url = "https://github.com/SirPlease/SirCoding"
+	version = "1.5",
+	url = "https://github.com/fbef0102/L4D1_2-Plugins/tree/master/bequiet"
 }
 
 new UserMsg:g_umSayText2;
@@ -21,6 +20,7 @@ public OnPluginStart()
 	//Server CVar
 	HookEvent("server_cvar", Event_ServerDontNeedPrint, EventHookMode_Pre);
 	
+	//change name
 	g_umSayText2 = GetUserMessageId("SayText2");
 	HookUserMessage(g_umSayText2, UserMessageHook, true);
 }
@@ -55,17 +55,20 @@ public Action:Event_ServerDontNeedPrint(Handle:event, const String:name[], bool:
     return Plugin_Handled;
 }
 
+
 public Action:UserMessageHook(UserMsg:msg_hd, Handle:bf, const players[], playersNum, bool:reliable, bool:init)
 {
-
 	decl String:_sMessage[96];
-	BfReadString(bf, _sMessage, sizeof(_sMessage));
-	BfReadString(bf, _sMessage, sizeof(_sMessage));
+	
+	// Skip the first two bytes 
+	BfReadByte(bf); 
+	BfReadByte(bf);
+	
+	// Read the message 
+	BfReadString(bf, _sMessage, sizeof(_sMessage), true); 
 
-	if(StrContains(_sMessage, "Name_Change") != -1)
+	if(StrContains(_sMessage, "Cstrike_Name_Change") != -1)
 	{
-		BfReadString(bf, _sMessage, sizeof(_sMessage));
-
 		for(new i = 1; i <= MaxClients; i++)
 			if(IsClientInGame(i))
 				return Plugin_Handled;
