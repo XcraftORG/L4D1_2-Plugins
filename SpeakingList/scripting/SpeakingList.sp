@@ -24,7 +24,7 @@ public Plugin myinfo =
 	name = "SpeakingList",
 	author = "Accelerator & HarryPotter",
 	description = "Voice Announce. Print To Center Message who Speaking. With cookies",
-	version = "1.6",
+	version = "1.7",
 	url = "https://steamcommunity.com/id/fbef0102/"
 }
 
