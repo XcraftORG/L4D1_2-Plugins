@@ -36,7 +36,7 @@ public void OnPluginStart()
 	va_default_speaklist = CreateConVar("va_default_speaklist", "1", "Enable speaklist when sv_alltalk on? [1-Enable/0-Disable]", 0, true, 0.0, true, 1.0);
 	va_svalltalk = FindConVar("sv_alltalk");
 	
-	RegConsoleCmd("sm_speaklist", Command_SpeakList, "玩家開啟或關閉語音列表");
+	RegConsoleCmd("sm_speaklist", Command_SpeakList, "Player Enable or Disable speaklist");
 	
 	CreateTimer(UPDATESPEAKING_TIME_INTERVAL, UpdateSpeaking, _, TIMER_REPEAT);
 }
