@@ -1,0 +1,6 @@
+Fixes shooting/bullet displacement by 1 tick problems so you can accurately hit by moving.
+details here: https://forums.alliedmods.net/showthread.php?p=2646571
+
+-require-
+[2.2.0-detours9](https://forums.alliedmods.net/showpost.php?p=2588686&postcount=589)
+
