@@ -12,10 +12,12 @@ public Plugin:myinfo =
 
 public OnClientDisconnect(client)
 {
-	ServerCommand("sm_cvar sb_all_bot_team 1");
 	if(IsClientConnected(client)&&!IsClientInGame(client)) return; //連線中尚未進來的玩家離線
 	if(client&&!IsFakeClient(client)&&!checkrealplayerinSV(client)) //檢查是否還有玩家以外的人還在伺服器或是連線中
+	{
+		ServerCommand("sm_cvar sb_all_bot_team 1");
 		CreateTimer(20.0,COLD_DOWN);
+	}
 }
 public Action:COLD_DOWN(Handle:timer,any:client)
 {
