@@ -17,5 +17,5 @@
 * <b>firebulletsfix</b>: Fixes shooting/bullet displacement by 1 tick problems so you can accurately hit by moving.
 * <b>linux_auto_restart</b>: make linux auto restart server when the last player disconnects from the server
 # Scripting Compiler
-using sourcemod 1.8 or 1.9 Compiler
+most of source codes using [sourcemod 1.63](http://sourcemod.otstrel.ru) Compiler, some source codes need [sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) if you want to edit code and recomplie
 * <b>[colors.inc](https://forums.alliedmods.net/showthread.php?t=96831)</b>
