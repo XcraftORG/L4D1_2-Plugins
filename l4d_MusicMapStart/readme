@@ -18,7 +18,7 @@ Download and play one random music on map start/round start
 
 	*sample rate
 	-All MP3 files must be encoded in 44100 Hz sample rate, otherwise it may not play at all.
-	-To ensure, you can download (MP3 Quality Modifier tool)[https://mp3-quality-modifier.en.softonic.com/download] and re-encode all files at once.
+	-To ensure, you can download [MP3 Quality Modifier tool](https://mp3-quality-modifier.en.softonic.com/download) and re-encode all files at once.
 
 	*file size
 	-Next, it is recommended every file will not be > 5 MB. in size (to improve download speed).
