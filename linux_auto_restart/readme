@@ -1,2 +1,5 @@
-make linux auto restart server when the last player left the server.
-(LINUX WORK ONLY)
+make linux auto restart server after all human players are disconnected.
+
+Recommended for
+1. LINUX
+2. WINDOWS with HLSM
