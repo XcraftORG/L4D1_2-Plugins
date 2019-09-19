@@ -1,7 +1,5 @@
 # L4D1&2-Plugins  by Harry Potter
 All plugins in here apply to both L4D1/2 
-> last edited:2019/9/20
-# Require
 # Require
 * Clean Servers:
   * [Sourcemod 1.8](https://www.sourcemod.net/downloads.php?branch=1.8-dev) (or newer), [Metamod](https://www.metamodsource.net/downloads.php?branch=stable)
