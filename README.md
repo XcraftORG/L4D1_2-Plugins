@@ -25,3 +25,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 # Scripting Compiler
 most of source codes using [sourcemod 1.63](http://sourcemod.otstrel.ru) Compiler, some source codes need [sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) if you want to edit code and recomplie
 * <b>[colors.inc](https://forums.alliedmods.net/showthread.php?t=96831)</b>
+# Others
+* <b>[L4D1-Competitive-Plugins](https://github.com/fbef0102/L4D1-Competitive-Plugins)</b>
+* <b>[L4D2-Plugins](https://github.com/fbef0102/L4D2-Plugins)</b>
+* <b>[L4D1-Server4Dead](https://github.com/fbef0102/L4D1-Server4Dead)</b>
