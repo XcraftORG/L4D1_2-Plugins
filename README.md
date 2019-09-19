@@ -28,4 +28,4 @@ most of source codes using [sourcemod 1.63](http://sourcemod.otstrel.ru) Compile
 # Others
 * <b>[L4D1-Competitive-Plugins](https://github.com/fbef0102/L4D1-Competitive-Plugins)</b>
 * <b>[L4D2-Plugins](https://github.com/fbef0102/L4D2-Plugins)</b>
-* <b>[L4D1-Server4Dead](https://github.com/fbef0102/L4D1-Server4Dead)</b>
+* <b>[L4D1-Server4Dead](https://github.com/fbef0102/L4D1-Server4Dead)</b>: Setup your own L4D1 Servers.
