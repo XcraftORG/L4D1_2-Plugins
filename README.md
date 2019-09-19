@@ -1,7 +1,10 @@
 # L4D1&2-Plugins  by Harry Potter
 All plugins in here apply to both L4D1/2 
-> last edited:2019/9/19
+> last edited:2019/9/20
 # Require
+# Require
+* Clean Servers:
+  * [Sourcemod 1.8](https://www.sourcemod.net/downloads.php?branch=1.8-dev) (or newer), [Metamod](https://www.metamodsource.net/downloads.php?branch=stable)
 * <b>[GameRules Prop Hax](https://forums.alliedmods.net/showthread.php?t=154217)</b>
 # Plugins
 * <b>l4d_afk_commands</b>: Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse
