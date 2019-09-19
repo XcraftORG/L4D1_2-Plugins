@@ -1,5 +1,8 @@
 # L4D1&2-Plugins  by Harry Potter
->All plugins in here apply to both L4D1/2 (last edited:2019/9/19)
+All plugins in here apply to both L4D1/2 
+> last edited:2019/9/19
+# Require
+* <b>[GameRules Prop Hax](https://forums.alliedmods.net/showthread.php?t=154217)</b>
 # Plugins
 * <b>l4d_afk_commands</b>: Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse
 * <b>l4d_DynamicHostname</b>: Show what mode is it now on server name(support any Language) with txt file
