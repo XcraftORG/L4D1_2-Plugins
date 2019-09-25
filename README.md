@@ -11,7 +11,6 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>games</b>: Let's play a game, Duel 決鬥!!
 * <b>l4dffannounce</b>: Adds Friendly Fire Announcements (who kills teammates)
 * <b>savechat</b>: Records player chat messages to a file
-* <b>gametype_description</b>: Change Game type in server list
 * <b>l4d_MusicMapStart</b>: Download and play one random music on map start/round start
 * <b>map-decals</b>: Allows admins to place any decals into the map that are defined in the the config and save them permanently for each map
 * <b>SpeakingList</b>: Voice Announce. Print To Center Message who Speaking. With cookies
