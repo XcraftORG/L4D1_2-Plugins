@@ -1,6 +1,6 @@
 # L4D1&2-Plugins  by Harry Potter
 Help server to record, make server more fun, and more useful plugins for adm.
-> All plugins in here apply to both L4D1/2 (last edited:2019/9/29)
+> All plugins in here apply to both L4D1/2 (last edited:2019/10/3)
 # Require
 * Clean Servers:
   * [Sourcemod 1.8](https://www.sourcemod.net/downloads.php?branch=1.8-dev) (or newer), [Metamod](https://www.metamodsource.net/downloads.php?branch=stable)
