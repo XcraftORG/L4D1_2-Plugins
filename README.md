@@ -1,6 +1,6 @@
 # L4D1&2-Plugins  by Harry Potter
 Help server to record, make server more fun, and more useful plugins for adm.
-> All plugins in here apply to both L4D1/2 (last edited:2019/10/3)
+> All plugins in here apply to both L4D1/2 (last edited:2019/10/5)
 # Require
 * Clean Servers:
   * [Sourcemod 1.8](https://www.sourcemod.net/downloads.php?branch=1.8-dev) (or newer), [Metamod](https://www.metamodsource.net/downloads.php?branch=stable)
@@ -22,6 +22,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>linux_auto_restart</b>: make linux auto restart server when the last player disconnects from the server
 * <b>l4d_roundend_alltalk</b>: enable alltalk every end round and disable every start
 * <b>anti-friendly_fire</b>: shoot your teammate = shoot yourself.
+* <b>top5</b>: Skeet Announce Edition (Database)
 # Scripting Compiler
 most of source codes using [sourcemod 1.63](http://sourcemod.otstrel.ru) Compiler, some source codes need [sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) if you want to edit code and recomplie
 * <b>[colors.inc](https://forums.alliedmods.net/showthread.php?t=96831)</b>

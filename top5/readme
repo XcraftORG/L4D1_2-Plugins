@@ -1,0 +1,10 @@
+Skeet Announce Edition (Database)
+
+-convars-
+"skeet_announce_oneshot", "1", "Only count 'One Shot' skeet?"
+"top_skeetannounce", "0", "Announce skeet/shots in chatbox when someone skeets."
+
+-command-
+"sm_skeets", "Show your current statistics."
+"sm_rank", "Show your current rank."
+"sm_top5", "Show TOP 5 players in statistics."
