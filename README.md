@@ -1,6 +1,6 @@
 # L4D1&2-Plugins  by Harry Potter
 Help server to record, make server more fun, and more useful plugins for adm.
-> All plugins in here apply to both L4D1/2 (last edited:2019/10/5)
+> All plugins in here apply to both L4D1/2 (last edited:2019/10/06)
 # Require
 * Clean Servers:
   * [Sourcemod 1.8](https://www.sourcemod.net/downloads.php?branch=1.8-dev) (or newer), [Metamod](https://www.metamodsource.net/downloads.php?branch=stable)
@@ -20,7 +20,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>l4d_sm_respawn</b>: Let's you respawn Players by console
 * <b>firebulletsfix</b>: Fixes shooting/bullet displacement by 1 tick problems so you can accurately hit by moving
 * <b>linux_auto_restart</b>: make linux auto restart server when the last player disconnects from the server
-* <b>l4d_roundend_alltalk</b>: enable alltalk every end round and disable every start
+* <b>l4d_roundend_alltalk</b>: enable alltalk every end round and disable every round start
 * <b>anti-friendly_fire</b>: shoot your teammate = shoot yourself.
 * <b>top</b>: Skeet Announce Edition (Database)
 * <b>L4DVSAutoSpectateOnAFK</b>: Forces survivors and infected to spectate if they're AFK after certain time
