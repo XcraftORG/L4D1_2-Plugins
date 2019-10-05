@@ -1,3 +1,8 @@
+/*version: 2.0*/
+//修正無法用jointeam2 <character> 選擇角色
+//回合結束之前不准擅自更換隊伍
+//管理員指令新增 sm_swapto <player> <team> 強制指定玩家換隊伍
+
 /*version: 1.9*/
 //修正出安全門無法換隊
 
@@ -13,7 +18,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "1.9"
+#define PLUGIN_VERSION    "2.0"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -37,6 +42,13 @@ static DeadChangeTeamEnable;
 new Handle:g_hGameMode;
 static String:CvarGameMode[20];
 static bool:LEFT_SAFE_ROOM;
+static Handle:arrayclientswitchteam;
+new Handle:cvarEnforceTeamSwitch = INVALID_HANDLE;
+new bool:EnforceTeamSwitch;
+#define STEAMID_SIZE 		32
+static const ARRAY_TEAM = 1;
+static const ARRAY_COUNT = 2;
+#define L4D_TEAM_NAME(%1) (%1 == 2 ? "Survivors" : (%1 == 3 ? "Infected" : (%1 == 1 ? "Spectators" : "Unknown")))
 
 public Plugin:myinfo =
 {
@@ -88,14 +100,19 @@ public OnPluginStart()
 	
 	RegConsoleCmd("jointeam", WTF);
 	RegConsoleCmd("go_away_from_keyboard", WTF2);
-
+	
+	RegAdminCmd("sm_swapto", Command_SwapTo, ADMFLAG_BAN, "sm_swapto <player1> [player2] ... [playerN] <teamnum> - swap all listed players to <teamnum> (1,2, or 3)");
+	
 	cvarCoolTime = CreateConVar("l4d2_changeteam_cooltime", "4.0", "Time in seconds a player can't change team again.", FCVAR_NOTIFY);
 	cvarDeadChangeTeamEnable = CreateConVar("l4d2_deadplayer_changeteam", "0", "Can Dead Survivor Player change team? (0:No, 1:Yes)", FCVAR_NOTIFY);
+	cvarEnforceTeamSwitch = CreateConVar("l4d_teamswitch_enabled", "0", "Can player use command to switch team during the game?", FCVAR_SPONLY | FCVAR_NOTIFY);
 	
 	DeadChangeTeamEnable = GetConVarBool(cvarDeadChangeTeamEnable);
+	EnforceTeamSwitch = GetConVarBool(cvarEnforceTeamSwitch);
 	
 	HookConVarChange(cvarCoolTime, ConVarChange_cvarCoolTime);
 	HookConVarChange(cvarDeadChangeTeamEnable, ConVarChange_cvarDeadChangeTeamEnable);
+	HookConVarChange(cvarEnforceTeamSwitch, ConVarChange_cvarEnforceTeamSwitch);
 	
 	HookEvent("lunge_pounce", Event_Survivor_GOT);
 	HookEvent("tongue_grab", Event_Survivor_GOT);
@@ -113,8 +130,7 @@ public OnPluginStart()
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_death",		Event_PlayerDeath);
 	HookEvent("player_team", Event_PlayerChangeTeam);
-	
-	//HookEvent("player_bot_replace", OnPlayerBotReplace);
+	HookEvent("player_spawn", Event_PlayerSpawn);
 
 	
 	CheckSpectatePenalty();
@@ -123,23 +139,110 @@ public OnPluginStart()
 	g_hGameMode = FindConVar("mp_gamemode");
 	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
 	HookConVarChange(g_hGameMode, ConVarChange_CvarGameMode);
+	arrayclientswitchteam = CreateArray(ByteCountToCells(STEAMID_SIZE));
 }
 
 public OnMapStart()
 {
+	ClearArray(arrayclientswitchteam);
 	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
+}
+
+public Action:Command_SwapTo(client, args)
+{
+	if (args < 2)
+	{
+		ReplyToCommand(client, "[SM] Usage: sm_swapto <player1> [player2] ... [playerN] <teamnum> - swap all listed players to team <teamnum> (1,2,or 3)");
+		return Plugin_Handled;
+	}
+	
+	new team;
+	new String:teamStr[64];
+	GetCmdArg(args, teamStr, sizeof(teamStr))
+	team = StringToInt(teamStr);
+	if(0>=team||team>=4)
+	{
+		ReplyToCommand(client, "[SM] Invalid team %s specified, needs to be 1, 2, or 3", teamStr);
+		return Plugin_Handled;
+	}
+	
+	new player_id;
+
+	new String:player[64];
+	
+	for(new i = 0; i < args - 1; i++)
+	{
+		GetCmdArg(i+1, player, sizeof(player));
+		player_id = FindTarget(client, player, true /*nobots*/, false /*immunity*/);
+		
+		if(player_id == -1)
+			continue;
+		
+		if(team == 1)
+			ChangeClientTeam(player_id,1);
+		else if(team == 2)
+			ChangeClientTeam(player_id,2);
+		else if (team == 3)
+			ChangeClientTeam(player_id,3);
+			
+		PrintToChatAll("[SM] %N has been swapped to the %s team.", player_id, L4D_TEAM_NAME(team));
+	}
+	
+	return Plugin_Handled;
 }
 
 public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if(!IsClientAndInGame(client)) return;
-	clientBusy[client] = false;
+	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(!IsClientAndInGame(victim)) return;
+	clientBusy[victim] = false;
 	
-	if(GetClientTeam(client) == 3 && GetEntProp(client,Prop_Send,"m_zombieClass") == ZOMBIECLASS_CHARGER && ChargerGot[client] > 0)
+	if(GetClientTeam(victim) == 3 && GetEntProp(victim,Prop_Send,"m_zombieClass") == ZOMBIECLASS_CHARGER && ChargerGot[victim] > 0)
 	{
-		clientBusy[ChargerGot[client]] = false;
-		ChargerGot[client] = 0;
+		clientBusy[ChargerGot[victim]] = false;
+		ChargerGot[victim] = 0;
+	}
+	
+	if(!EnforceTeamSwitch && IsClientInGame(victim) && !IsFakeClient(victim))
+	{
+		decl String:steamID[STEAMID_SIZE];
+		GetClientAuthId(victim, AuthId_Steam2,steamID, STEAMID_SIZE);
+		new index = FindStringInArray(arrayclientswitchteam, steamID);
+		if (index == -1) {
+			PushArrayString(arrayclientswitchteam, steamID);
+			PushArrayCell(arrayclientswitchteam, 4);
+		}
+		else
+		{
+			SetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM, 4);
+		}			
+	}
+}
+
+public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new player = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(!EnforceTeamSwitch && player > 0 && player <=MaxClients && IsClientInGame(player) && !IsFakeClient(player) && GetClientTeam(player) == 2)
+	{
+		CreateTimer(2.0,checksurvivorspawn,player);		
+	}
+}
+
+public Action:checksurvivorspawn(Handle:timer,any:client)
+{
+	if(!EnforceTeamSwitch && IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client))
+	{
+		decl String:steamID[STEAMID_SIZE];
+		GetClientAuthId(client, AuthId_Steam2,steamID, STEAMID_SIZE);
+		new index = FindStringInArray(arrayclientswitchteam, steamID);
+		if (index == -1) {
+			PushArrayString(arrayclientswitchteam, steamID);
+			PushArrayCell(arrayclientswitchteam, 2);
+		}
+		else
+		{
+			SetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM, 2);
+		}			
 	}
 }
 
@@ -253,6 +356,11 @@ public ConVarChange_cvarDeadChangeTeamEnable(Handle:convar, const String:oldValu
 	DeadChangeTeamEnable = StringToInt(newValue);
 }
 
+public ConVarChange_cvarEnforceTeamSwitch(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	EnforceTeamSwitch = GetConVarBool(cvarEnforceTeamSwitch);
+}
+
 static CheckSpectatePenalty()
 {
 	if(GetConVarFloat(cvarCoolTime) <= 0.0) CoolTime = 0.0;
@@ -261,6 +369,9 @@ static CheckSpectatePenalty()
 }
 public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	for (new i = 0; i < (GetArraySize(arrayclientswitchteam) / ARRAY_COUNT); i++) {
+		SetArrayCell(arrayclientswitchteam, (i * ARRAY_COUNT) + ARRAY_TEAM, 0);
+	}
 	Clear();
 	CreateTimer(1.0, PlayerLeftStart, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
@@ -314,12 +425,12 @@ public Action:TurnClientToSpectate(client, argCount)
 	}
 	if(IsClientIdle(client))
 	{
-		PrintHintText(client, "You are now idle already.");
+		PrintHintText(client, "[TS] 你正在閒置中.");
 		return Plugin_Handled;
 	}
 	if(GetClientTeam(client) != 1)
 	{
-		if(!CanClientChangeTeam(client)) return Plugin_Handled;
+		if(!CanClientChangeTeam(client,1)) return Plugin_Handled;
 		
 		if(GetClientTeam(client) == 2)
 			FakeClientCommand(client, "go_away_from_keyboard");
@@ -351,18 +462,18 @@ public Action:TurnClientToSurvivors(client, args)
 	}
 	if (GetClientTeam(client) == 2)			//if client is survivor
 	{
-		PrintHintText(client, "You are already on the Survivor team.");
+		PrintHintText(client, "[TS] 你已經在人類隊伍了! you dumb shit.");
 		return Plugin_Handled;
 	}
 	if(IsClientIdle(client))
 	{
-		PrintHintText(client, "You are now idle. Press mouse to play as survivor");
+		PrintHintText(client, "[TS] 你正在閒置中. 請按左鍵遊玩倖存者.");
 		return Plugin_Handled;
 	}
 	
-	if(!CanClientChangeTeam(client)) return Plugin_Handled;
+	if(!CanClientChangeTeam(client,2)) return Plugin_Handled;
 	
-	new maxSurvivorSlots = GetTeamMaxHumans(2);
+	new maxSurvivorSlots = GetTeamMaxSlots(2);
 	new survivorUsedSlots = GetTeamHumanCount(2);
 	new freeSurvivorSlots = (maxSurvivorSlots - survivorUsedSlots);
 	//debug
@@ -370,7 +481,7 @@ public Action:TurnClientToSurvivors(client, args)
 	
 	if (freeSurvivorSlots <= 0)
 	{
-		PrintHintText(client, "Survivor team is full.");
+		PrintHintText(client, "[TS] 人類隊伍已滿.");
 		return Plugin_Handled;
 	}
 	else
@@ -437,15 +548,15 @@ public Action:TurnClientToInfected(client, args)
 	}
 	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
-		PrintHintText(client, "You are already on the Infected team.");
+		PrintHintText(client, "[TS] 你已經在特感隊伍了.");
 		return Plugin_Handled;
 	}
-	new maxInfectedSlots = GetTeamMaxHumans(3);
+	new maxInfectedSlots = GetTeamMaxSlots(3);
 	new infectedUsedSlots = GetTeamHumanCount(3);
 	new freeInfectedSlots = (maxInfectedSlots - infectedUsedSlots);
 	if (freeInfectedSlots <= 0)
 	{
-		PrintHintText(client, "Infected team is full.");
+		PrintHintText(client, "[TS] 特感隊伍已滿.");
 		return Plugin_Handled;
 	}
 	if(StrEqual(CvarGameMode,"coop")||StrEqual(CvarGameMode,"survival")||StrEqual(CvarGameMode,"realism"))
@@ -453,7 +564,7 @@ public Action:TurnClientToInfected(client, args)
 		return Plugin_Handled;
 	}
 	
-	if(!CanClientChangeTeam(client)) return Plugin_Handled;
+	if(!CanClientChangeTeam(client,3)) return Plugin_Handled;
 	
 	ChangeClientTeam(client, 3);clientteam[client] = 3;
 	
@@ -479,18 +590,18 @@ public Action:Survivor_Take_Control(Handle:timer, any:client)
 		}
 		SetCommandFlags(command, flags);
 }
-stock GetTeamMaxHumans(team)
+stock GetTeamMaxSlots(team)
 {
-	if(team == 2)
+	new teammaxslots = -1;
+	for(new i = 1; i < (MaxClients + 1); i++)
 	{
-		return GetConVarInt(FindConVar("survivor_limit"));
-	}
-	else if(team == 3)
-	{
-		return GetConVarInt(FindConVar("z_max_player_zombies"));
+		if(IsClientInGame(i) && GetClientTeam(i) == team)
+		{
+			teammaxslots++;
+		}
 	}
 	
-	return -1;
+	return teammaxslots;
 }
 stock GetTeamHumanCount(team)
 {
@@ -532,13 +643,38 @@ public Action:WTF(client, args) //玩家press m
 		PrintToServer("[TS] command cannot be used by server.");
 		return Plugin_Handled;
 	}
-	if( args < 1 )
+	
+	//if( args < 1 )
+	//{
+	//	return Plugin_Handled;
+	//}
+	
+	if(!CanClientChangeTeam(client,5)) return Plugin_Handled;
+	
+	if(args == 2)
 	{
+		decl String:arg1[64];
+		GetCmdArg(1, arg1, 64);
+		decl String:arg2[64];
+		GetCmdArg(2, arg2, 64);
+		if(StrEqual(arg1,"2") &&
+			(StrEqual(arg2,"Nick") ||
+			 StrEqual(arg2,"Ellis") ||
+			 StrEqual(arg2,"Rochelle") ||
+			 StrEqual(arg2,"Coach") ||
+			 StrEqual(arg2,"Bill") ||
+			 StrEqual(arg2,"Zoey") ||
+			 StrEqual(arg2,"Francis") ||
+			 StrEqual(arg2,"Louis") 
+			)
+		)
+		{	
+			return Plugin_Continue;
+		}
+		ReplyToCommand(client, "Usage: jointeam 2 <character_name>");	
 		return Plugin_Handled;
 	}
 	
-	if(!CanClientChangeTeam(client)) return Plugin_Handled;
-
 	new String:arg1[64];
 	GetCmdArg(1, arg1, 64);
 	if(IsInteger(arg1))
@@ -574,16 +710,16 @@ public Action:WTF2(client, args)
 	
 	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
-		PrintHintText(client, "Go away!! infected player, you can't take a break");
+		PrintHintText(client, "[TS] 走開!! 特感玩家無法閒置!.");
 		return Plugin_Handled;
 	}
 	if(IsClientIdle(client))
 	{
-		PrintHintText(client, "You are now idle already.");
+		PrintHintText(client, "[TS] 你正在閒置中.");
 		return Plugin_Handled;
 	}
 	
-	if(!CanClientChangeTeam(client)) return Plugin_Handled;
+	if(!CanClientChangeTeam(client,1)) return Plugin_Handled;
 	
 	clientteam[client] = 1;
 	StartChangeTeamCoolDown(client);
@@ -622,7 +758,7 @@ public Action:TakeOverBot(Handle:timer, any:client)
 	new bot = FindBotToTakeOver()	;
 	if (bot==0)
 	{
-		PrintHintText(client, "No survivor bots to take over.");
+		PrintHintText(client, "[TS] 沒有人類bot能取代.");
 		return;
 	}
 	
@@ -715,26 +851,31 @@ bool:HasIdlePlayer(bot)
 	return false;
 }
 
-bool:CanClientChangeTeam(client)
+bool:CanClientChangeTeam(client,changeteam)
 {
 	if (clientBusy[client])
 	{
-		PrintHintText(client, "特感抓住期間禁止換隊.");
+		PrintHintText(client, "[TS] 特感抓住期間禁止換隊.");
 		return false;
 	}	
 	if(InCoolDownTime[client])
 	{
 		bClientJoinedTeam[client] = true;
-		CPrintToChat(client, "You can't change team so quickly! Wait %.0fs", g_iSpectatePenaltyCounter[client]);
+		CPrintToChat(client, "[{olive}TS{default}] 無法快速換隊! 請等待 {green}%.0f {default}秒.", g_iSpectatePenaltyCounter[client]);
 		return false;
 	}
 	if(GetClientTeam(client) == 2)
 	{
 		if(!PlayerIsAlive(client)&&!DeadChangeTeamEnable)
 		{
-			PrintHintText(client, "死亡倖存者禁止換隊.");
+			PrintHintText(client, "[TS] 死亡倖存者禁止換隊.");
 			return false;
 		}
+	}
+	if(!EnforceTeamSwitch && LEFT_SAFE_ROOM && GetClientTeam(client) != 1 && changeteam != 1) 
+	{
+		CPrintToChat(client, "[{olive}TS{default}] 遊戲中{green}禁止跳隊{default}!!");
+		return false;
 	}
 	return true;
 }
@@ -752,7 +893,47 @@ StartChangeTeamCoolDown(client)
 
 public Action:ClientReallyChangeTeam(Handle:timer, any:client)
 {
-	if(!IsClientAndInGame(client)||IsFakeClient(client)||InCoolDownTime[client]||!LEFT_SAFE_ROOM) return;
+	if(!IsClientAndInGame(client)||IsFakeClient(client)) return;
+	
+	if(!EnforceTeamSwitch)
+	{
+		new newteam = GetClientTeam(client);
+		if(newteam != 1)
+		{
+			decl String:steamID[STEAMID_SIZE];
+			GetClientAuthId(client, AuthId_Steam2, steamID, STEAMID_SIZE);
+			new index = FindStringInArray(arrayclientswitchteam, steamID);
+			if (index == -1) {
+				PushArrayString(arrayclientswitchteam, steamID);
+				PushArrayCell(arrayclientswitchteam, newteam);
+			}
+			else
+			{
+				if(!LEFT_SAFE_ROOM)
+					SetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM, newteam);
+				else
+				{
+					new oldteam = GetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM);
+					//PrintToChatAll("%N newteam: %d, oldteam: %d",client,oldteam,newteam);
+					if(newteam != oldteam)
+					{
+						if(oldteam == 4 && !(newteam == 2 && !IsPlayerAlive(client)) ) //player survivor death
+						{
+							ChangeClientTeam(client,1);
+							CPrintToChat(client,"[{olive}TS{default}] 你已經在倖存者隊伍死亡, {red}禁止跳隊{default}!!");
+						}
+						else if(oldteam != 4)
+						{
+							ChangeClientTeam(client,1);
+							CPrintToChat(client,"[{olive}TS{default}] 回去 %s {default}隊伍, 遊戲中{red}禁止跳隊{default}!!",(oldteam == 2) ? "{blue}倖存者" : "{red}特感");
+						}
+					}
+				}
+			}		
+		}
+	}
+	
+	if(!LEFT_SAFE_ROOM && InCoolDownTime[client]) return;
 	
 	//PrintToChatAll("client: %N change Team: %d clientteam[client]:%d",client,GetClientTeam(client),clientteam[client]);
 	if(GetClientTeam(client) != clientteam[client])
@@ -780,7 +961,7 @@ public Action:Timer_CanJoin(Handle:timer, any:client)
 		if(GetClientTeam(client)!=clientteam[client])
 		{	
 			bClientJoinedTeam[client] = true;
-			CPrintToChat(client, "You can't change team so quickly! Wait %.0fs.", g_iSpectatePenaltyCounter[client]);
+			CPrintToChat(client, "[{olive}TS{default}] 無法快速換隊! 請等待 {green}%.0f {default}秒.", g_iSpectatePenaltyCounter[client]);
 			ChangeClientTeam(client, 1);clientteam[client]=1;
 			return Plugin_Continue;
 		}
@@ -790,12 +971,12 @@ public Action:Timer_CanJoin(Handle:timer, any:client)
 		if(GetClientTeam(client)!=clientteam[client])
 		{	
 			bClientJoinedTeam[client] = true;
-			CPrintToChat(client, "You can't change team so quickly! Wait %.0fs.", g_iSpectatePenaltyCounter[client]);
+			CPrintToChat(client, "[{olive}TS{default}]] 無法快速換隊! 請等待 {green}%.0f {default}秒.", g_iSpectatePenaltyCounter[client]);
 			ChangeClientTeam(client, 1);clientteam[client]=1;
 		}
 		if (bClientJoinedTeam[client])
 		{
-			PrintHintText(client, "You can change team now");	//only print this hint text to the spectator if he tried to join team, and got swapped before
+			PrintHintText(client, "[TS] 你現在能換隊了.");	//only print this hint text to the spectator if he tried to join team, and got swapped before
 		}
 		InCoolDownTime[client] = false;
 		bClientJoinedTeam[client] = false;

@@ -23,6 +23,8 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>l4d_roundend_alltalk</b>: enable alltalk every end round and disable every start
 * <b>anti-friendly_fire</b>: shoot your teammate = shoot yourself.
 * <b>top</b>: Skeet Announce Edition (Database)
+* <b>L4DVSAutoSpectateOnAFK</b>: Forces survivors and infected to spectate if they're AFK after certain time
+* <b>l4d_achievement_trophy</b>: Displays the TF2 trophy when a player unlocks an achievement.
 # Scripting Compiler
 most of source codes using [sourcemod 1.63](http://sourcemod.otstrel.ru) Compiler, some source codes need [sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) if you want to edit code and recomplie
 * <b>[colors.inc](https://forums.alliedmods.net/showthread.php?t=96831)</b>
