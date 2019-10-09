@@ -7,9 +7,6 @@
  ================================================================
  Date       Version  Description
  ================================================================
- 26/1/19  1.3    - Fixed bug with client 0
-                 - Add steam id and ip every chat
-                 - Add client left
  23/Feb/10  1.2.1    - Fixed bug with player team id
  15/Feb/10  1.2.0    - Now records team name when using cvar
                             sm_record_detail 
@@ -178,7 +175,7 @@ public LogChat(client, args, bool:teamchat)
 
 	new String:steamID[128]
 	
-	if(client == 0) {
+	if (client == 0 || !IsClientInGame(client)) {
 		/* Don't try and obtain client country/team if this is a console message */
 		Format(country, sizeof(country), "  ")
 		Format(teamName, sizeof(teamName), "")

@@ -13,7 +13,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdktools_functions>
-#define PLUGIN_VERSION "1.5"
+#define PLUGIN_VERSION "1.6"
 
 
 // For cvars
@@ -36,7 +36,7 @@ new bool:afkShowTeamPanel;
 
 
 // work variables
-new bool:afkManager_Active;
+new bool:afkManager_Active = false;
 new afkPlayerTimeLeftWarn[MAXPLAYERS + 1];
 new afkPlayerTimeLeftAction[MAXPLAYERS + 1];
 new afkPlayerTrapped[MAXPLAYERS + 1];
@@ -44,9 +44,6 @@ new Float:afkPlayerLastPos[MAXPLAYERS + 1][3];
 new Float:afkPlayerLastEyes[MAXPLAYERS + 1][3];
 new bool:LeavedSafeRoom;
 new bool:PlayerJustConnected[MAXPLAYERS + 1];
-native IsInReady();
-native IsInPause();
-native Is_Ready_Plugin_On();
 
 public Plugin:myinfo = 
 {
@@ -64,14 +61,45 @@ public OnPluginStart()
 	RegConsoleCmd("say", Command_Say);
 	RegConsoleCmd("say_team", Command_Say);
 	
+	
+	// Changed teams
+	HookEvent("player_team", afkChangedTeam);
+	
+	// Player actions
+	HookEvent("entity_shoved", afkPlayerAction);
+	HookEvent("player_shoved", afkPlayerAction);
+	HookEvent("player_shoot", afkPlayerAction);
+	HookEvent("player_jump", afkPlayerAction);
+	HookEvent("player_hurt", afkPlayerAction);
+	HookEvent("player_hurt_concise", afkPlayerAction);
+	
+	// incapacitated
+	HookEvent("player_incapacitated", afkEventIncap);
+	HookEvent("player_ledge_grab", afkEventIncap);
+	HookEvent("revive_success", afkEventRevived);
+	
+	// checkpoints
+	HookEvent("player_entered_checkpoint", afkEventStartCheck);
+	HookEvent("player_left_checkpoint", afkEventStopCheck);
+	
+	// tounge & choke
+	HookEvent("tongue_grab", afkEventStartGrab);
+	HookEvent("choke_start", afkEventStartGrab);
+	HookEvent("tongue_release", afkEventStopGrab);
+	
+	// pounced
+	HookEvent("lunge_pounce", afkEventStartGrab);
+	HookEvent("pounce_end", afkEventStopGrab);
+	HookEvent("pounce_stopped", afkEventStopGrab);
+	
 	// For roundstart and roundend..
 	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_Pre);
 	HookEvent("player_left_start_area", PlayerLeftStart);
-	HookEvent("finale_vehicle_leaving", afkEventFinaleLeaving, EventHookMode_Pre);
+	HookEvent("finale_vehicle_leaving", Event_RoundEnd, EventHookMode_Pre);
 	HookEvent("mission_lost", Event_RoundEnd);
 	HookEvent("map_transition", Event_RoundEnd, EventHookMode_Pre);
-	
+
 	// Afk manager time limits
 	h_AfkWarnSpecTime = CreateConVar("l4d_specafk_warnspectime", "20", "Warn time before spec", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkSpecTime = CreateConVar("l4d_specafk_spectime", "15", "time before spec (after warn)", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
@@ -129,7 +157,10 @@ public OnMapStart()
 	// We read all the cvars
 	ReadCvars();
 }
-
+public OnMapEnd()
+{
+	afkManager_Stop();
+}
 public OnClientPutInServer(client)
 {
 	// If players already leaved safe room we mark the player as just connected ...
@@ -192,12 +223,14 @@ public Action:Command_Say(client, args)
 
 public Action:Event_RoundStart (Handle:event, const String:name[], bool:dontBroadcast)
 {
-	
 	// reset some variables
 	LeavedSafeRoom = false;
 	
 	// We start the AFK manager
-	afkManager_Start();
+	if(!afkManager_Active)
+	{
+		afkManager_Start();
+	}
 	
 	return Plugin_Continue;
 }
@@ -209,86 +242,11 @@ public Action:PlayerLeftStart(Handle:event, const String:name[], bool:dontBroadc
 	return Plugin_Continue;
 }
 
-public Action:afkEventFinaleLeaving(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	if (afkManager_Active)
-	{
-		afkManager_Stop()
-	}
-}
-
 public Action:Event_RoundEnd (Handle:event, const String:name[], bool:dontBroadcast)
 {
 	PrintToServer("******* ROUND END *********");
 	
-	// We stop the AFK manager
 	afkManager_Stop();
-}
-
-afkRegisterEvents()
-{
-	// Changed teams
-	HookEvent("player_team", afkChangedTeam);
-	
-	// Player actions
-	HookEvent("entity_shoved", afkPlayerAction);
-	HookEvent("player_shoved", afkPlayerAction);
-	HookEvent("player_shoot", afkPlayerAction);
-	HookEvent("player_jump", afkPlayerAction);
-	HookEvent("player_hurt", afkPlayerAction);
-	HookEvent("player_hurt_concise", afkPlayerAction);
-	
-	// incapacitated
-	HookEvent("player_incapacitated", afkEventIncap);
-	HookEvent("player_ledge_grab", afkEventIncap);
-	HookEvent("revive_success", afkEventRevived);
-	
-	// checkpoints
-	HookEvent("player_entered_checkpoint", afkEventStartCheck);
-	HookEvent("player_left_checkpoint", afkEventStopCheck);
-	
-	// tounge & choke
-	HookEvent("tongue_grab", afkEventStartGrab);
-	HookEvent("choke_start", afkEventStartGrab);
-	HookEvent("tongue_release", afkEventStopGrab);
-	
-	// pounced
-	HookEvent("lunge_pounce", afkEventStartGrab);
-	HookEvent("pounce_end", afkEventStopGrab);
-	HookEvent("pounce_stopped", afkEventStopGrab);
-}
-
-afkUnRegisterEvents()
-{
-	// Changed teams
-	UnhookEvent("player_team", afkChangedTeam);
-	
-	// Player actions
-	UnhookEvent("entity_shoved", afkPlayerAction);
-	UnhookEvent("player_shoved", afkPlayerAction);
-	UnhookEvent("player_shoot", afkPlayerAction);
-	UnhookEvent("player_jump", afkPlayerAction);
-	UnhookEvent("player_hurt", afkPlayerAction);
-	UnhookEvent("player_hurt_concise", afkPlayerAction);
-	
-	// incapacitated
-	UnhookEvent("player_incapacitated", afkEventIncap);
-	UnhookEvent("player_ledge_grab", afkEventIncap);
-	UnhookEvent("revive_success", afkEventRevived);
-	
-	// checkpoints
-	UnhookEvent("player_entered_checkpoint", afkEventStartCheck);
-	UnhookEvent("player_left_checkpoint", afkEventStopCheck);
-	
-	// tounge & choke
-	UnhookEvent("tongue_grab", afkEventStartGrab);
-	UnhookEvent("choke_start", afkEventStartGrab);
-	UnhookEvent("tongue_release", afkEventStopGrab);
-	
-	// pounced
-	UnhookEvent("lunge_pounce", afkEventStartGrab);
-	UnhookEvent("pounce_end", afkEventStopGrab);
-	UnhookEvent("pounce_stopped", afkEventStopGrab);
 }
 
 public Action:afkEventStartGrab (Handle:event, const String:name[], bool:dontBroadcast)
@@ -379,8 +337,6 @@ public Action:afkPlayerAction (Handle:event, const String:name[], bool:dontBroad
 
 public Action:afkChangedTeam (Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if(Is_Ready_Plugin_On()) return Plugin_Continue;
-
 	// we get the victim
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (victim > 0)
@@ -470,9 +426,6 @@ afkManager_Start()
 	// mark as active
 	afkManager_Active = true; 
 	
-	// We hook some player's events
-	afkRegisterEvents();
-	
 	// now we reset all the timers ...
 	new i;
 	for (i=1;i<=MAXPLAYERS;i++)
@@ -488,10 +441,8 @@ afkManager_Start()
 public Action:afkCheckThread(Handle:timer)
 {
 	// if afkmanager is not active ...
-	if (!afkManager_Active || Is_Ready_Plugin_On())
+	if (!afkManager_Active)
 		return Plugin_Stop;
-	if(IsInReady() || IsInPause() )
-		return Plugin_Continue;
 		
 	new count = GetMaxClients();
 	decl i;
@@ -726,11 +677,7 @@ afkManager_Stop()
 	if (!afkManager_Active) return;
 	
 	// mark as not active
-	afkManager_Active = false; 
-	
-	// We unregister the events
-	afkUnRegisterEvents();
-
+	afkManager_Active = false;
 }
 
 /////////////////
