@@ -592,7 +592,7 @@ public Action:Survivor_Take_Control(Handle:timer, any:client)
 }
 stock GetTeamMaxSlots(team)
 {
-	new teammaxslots = -1;
+	new teammaxslots = 0;
 	for(new i = 1; i < (MaxClients + 1); i++)
 	{
 		if(IsClientInGame(i) && GetClientTeam(i) == team)
