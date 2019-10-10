@@ -34,7 +34,7 @@ public OnPluginStart()
 public Event_PlayerDisconnect(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if(IsClientConnected(client)&&!IsClientInGame(client)) return; //連線中尚未進來的玩家離線
+	if(!client || (IsClientConnected(client)&&!IsClientInGame(client))) return; //連線中尚未進來的玩家離線
 	if(client&&!IsFakeClient(client)&&!checkrealplayerinSV(client)) //檢查是否還有玩家以外的人還在伺服器或是連線中
 	{
 		if(Isl4d2)
