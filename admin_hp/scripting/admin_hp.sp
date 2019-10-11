@@ -32,12 +32,41 @@ public Action:restore_hp(client, args){
 	}
 	
 	for( new i = 1; i < GetMaxClients(); i++ ) {
-		if (IsClientInGame(i) && IsClientConnected(i) && GetClientTeam(i)==L4D_TEAM_SURVIVOR )
-			SetEntityHealth(i, GetEntProp(i, Prop_Data, "m_iMaxHealth"));
+		if (IsClientInGame(i) && IsClientConnected(i) && GetClientTeam(i)==L4D_TEAM_SURVIVOR && IsPlayerAlive(i))
+			CheatCommand(i);
 	}
 	
 	PrintToChatAll("\x01[\x05TS\x01] Adm \x03%N \x01restores \x05all survivors \x04FULL HP", client);
 	LogMessage("[TS] Adm %N restores all survivors FULL HP", client);
 	
 	return Plugin_Handled;
+}
+
+CheatCommand(client)
+{
+	new give_flags = GetCommandFlags("give");
+	SetCommandFlags("give", give_flags & ~FCVAR_CHEAT);
+	if (GetEntProp(client, Prop_Send, "m_isHangingFromLedge"))//懸掛
+	{
+		FakeClientCommand(client, "give health");
+	}
+	else if (IsIncapacitated(client))//倒地
+	{
+		FakeClientCommand(client, "give health");
+		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
+	}
+	else if(GetClientHealth(client)<100) //血量低於100
+	{
+		FakeClientCommand(client, "give health");
+		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
+	}
+	
+	SetCommandFlags("give", give_flags);
+}
+
+stock IsIncapacitated(client)
+{
+	return GetEntProp(client, Prop_Send, "m_isIncapacitated");
 }
