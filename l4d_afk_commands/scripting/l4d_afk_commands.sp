@@ -593,12 +593,19 @@ public Action:Survivor_Take_Control(Handle:timer, any:client)
 stock GetTeamMaxSlots(team)
 {
 	new teammaxslots = 0;
-	for(new i = 1; i < (MaxClients + 1); i++)
+	if(team == 2)
 	{
-		if(IsClientInGame(i) && GetClientTeam(i) == team)
+		for(new i = 1; i < (MaxClients + 1); i++)
 		{
-			teammaxslots++;
+			if(IsClientInGame(i) && GetClientTeam(i) == team)
+			{
+				teammaxslots++;
+			}
 		}
+	}
+	else if (team == 3)
+	{
+		return GetConVarInt(FindConVar("z_max_player_zombies"));
 	}
 	
 	return teammaxslots;
@@ -925,7 +932,7 @@ public Action:ClientReallyChangeTeam(Handle:timer, any:client)
 						else if(oldteam != 4)
 						{
 							ChangeClientTeam(client,1);
-							CPrintToChat(client,"[{olive}TS{default}] 回去 %s {default}隊伍, 遊戲中{red}禁止跳隊{default}!!",(oldteam == 2) ? "{blue}倖存者" : "{red}特感");
+							CPrintToChat(client,"[{olive}TS{default}] 回去 {green}%s {default}隊伍, 遊戲中{red}禁止跳隊{default}!!",(oldteam == 2) ? "倖存者" : "特感");
 						}
 					}
 				}
