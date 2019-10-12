@@ -128,7 +128,7 @@ public OnPluginStart()
 	}
 	
 	HookEvent("round_start", Event_RoundStart);
-	HookEvent("player_death",		Event_PlayerDeath);
+	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_team", Event_PlayerChangeTeam);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 
@@ -203,7 +203,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 		ChargerGot[victim] = 0;
 	}
 	
-	if(!EnforceTeamSwitch && IsClientInGame(victim) && !IsFakeClient(victim))
+	if(!EnforceTeamSwitch && IsClientInGame(victim) && !IsFakeClient(victim) && GetClientTeam(victim) == 2)
 	{
 		decl String:steamID[STEAMID_SIZE];
 		GetClientAuthId(victim, AuthId_Steam2,steamID, STEAMID_SIZE);
