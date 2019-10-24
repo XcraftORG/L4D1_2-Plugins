@@ -27,50 +27,6 @@ public Plugin:myinfo =
 	version = "2.0",
 	url = "https://steamcommunity.com/id/AkemiHomuraGoddess/"
 };
-new String:g_sVocalize[41][] =
-{
-	"scenes/Biker/NiceShot01.vcd",
-	"scenes/Biker/NiceShot02.vcd",
-	"scenes/Biker/NiceShot03.vcd",
-	"scenes/Biker/NiceShot04.vcd",
-	"scenes/Biker/NiceShot07.vcd",
-	"scenes/Biker/NiceShot08.vcd",
-	"scenes/Biker/NiceShot09.vcd",
-	"scenes/Biker/NiceShot10.vcd",
-	"scenes/Manager/NiceShot01.vcd",
-	"scenes/Manager/NiceShot02.vcd",
-	"scenes/Manager/NiceShot03.vcd",
-	"scenes/Manager/NiceShot04.vcd",
-	"scenes/Manager/NiceShot05.vcd",
-	"scenes/Manager/NiceShot07.vcd",
-	"scenes/Manager/NiceShot08.vcd",
-	"scenes/Manager/NiceShot09.vcd",
-	"scenes/Manager/NiceShot10.vcd",
-	"scenes/NamVet/NiceShot01.vcd",
-	"scenes/NamVet/NiceShot02.vcd",
-	"scenes/NamVet/NiceShot03.vcd",
-	"scenes/NamVet/NiceShot04.vcd",
-	"scenes/NamVet/NiceShot05.vcd",
-	"scenes/NamVet/NiceShot06.vcd",
-	"scenes/NamVet/NiceShot07.vcd",
-	"scenes/NamVet/NiceShot08.vcd",
-	"scenes/NamVet/NiceShot09.vcd",
-	"scenes/NamVet/NiceShot13.vcd",
-	"scenes/NamVet/NiceShot14.vcd",
-	"scenes/TeenGirl/NiceShot01.vcd",
-	"scenes/TeenGirl/NiceShot04.vcd",
-	"scenes/TeenGirl/NiceShot05.vcd",
-	"scenes/TeenGirl/NiceShot06.vcd",
-	"scenes/TeenGirl/NiceShot07.vcd",
-	"scenes/TeenGirl/NiceShot08.vcd",
-	"scenes/TeenGirl/NiceShot11.vcd",
-	"scenes/TeenGirl/NiceShot12.vcd",
-	"scenes/TeenGirl/NiceShot13.vcd",
-	"scenes/TeenGirl/NiceShot14.vcd",
-	"scenes/TeenGirl/NiceShot15.vcd",
-	"scenes/TeenGirl/NiceShot16.vcd",
-	"scenes/TeenGirl/NiceShot17.vcd"
-};
 
 public OnPluginStart()
 {
@@ -151,35 +107,6 @@ public Action:Event_Replace(Handle:event, String:name[], bool:dontBroadcast)
 	Kills[player] = 0;
 	Kills[bot] = 0;
 	return Plugin_Continue;
-}
-
-Vocalize(client)
-{
-	decl String:sTemp[64];
-	GetEntPropString(client, PropType:1, "m_ModelName", sTemp, 64);
-	new random;
-	if (sTemp[1] == 'b')
-	{
-		random = GetRandomInt(0, 7);
-		new entity = CreateEntityByName("instanced_scripted_scene", -1);
-		DispatchKeyValue(entity, "SceneFile", g_sVocalize[random]);
-		DispatchSpawn(entity);
-		SetEntPropEnt(entity, PropType:1, "m_hOwner", client);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "Start", client, client, 0);
-	}
-	if (sTemp[1] == 'm')
-	{
-		random = GetRandomInt(8, 16);
-	}
-	if (sTemp[1] == 'n')
-	{
-		random = GetRandomInt(17, 27);
-	}
-	if (sTemp[1] == 't')
-	{
-		random = GetRandomInt(28, 40);
-	}
 }
 
 public Action:Event_PlayerHurt(Handle:event, String:name[], bool:dontBroadcast)
@@ -271,7 +198,6 @@ public Action:Event_PlayerDeath(Handle:event, String:name[], bool:dontBroadcast)
 								Statistic(attacker);
 								PrintTopSkeeters();
 								Skeeted(attacker);
-								Vocalize(attacker);
 								Skeets[attacker]++;
 								Kills[attacker]++;
 							}
@@ -281,7 +207,6 @@ public Action:Event_PlayerDeath(Handle:event, String:name[], bool:dontBroadcast)
 							Statistic(attacker);
 							PrintTopSkeeters();
 							Skeeted(attacker);
-							Vocalize(attacker);
 							Skeets[attacker]++;
 							Kills[attacker]++;
 						}
