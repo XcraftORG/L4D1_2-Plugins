@@ -27,6 +27,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>l4d_achievement_trophy</b>: Displays the TF2 trophy when a player unlocks an achievement.
 * <b>l4d_wind</b>: Create a survivor bot in game
 * <b>admin_hp</b>: Adm type !givehp to set survivor team full health
+* <b>pounce_database</b>: Pounce Announce Edition (Database)
 # Scripting Compiler
 most of source codes using [sourcemod 1.63](http://sourcemod.otstrel.ru) Compiler, some source codes need [sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) if you want to edit code and recomplie
 * <b>[colors.inc](https://forums.alliedmods.net/showthread.php?t=96831)</b>
