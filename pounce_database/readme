@@ -5,5 +5,5 @@ Announces hunter pounces to the entire server, and save record to data/pounce_da
 "pounce_database_announce","0","Announces the pounce in chatbox."
 
 -command-
-"sm_pounces", "Show your current pounce statistics and rank.", 0);
-"sm_pounce5", "Show TOP 5 pounce players in statistics.", 0);
+"sm_pounces", "Show your current pounce statistics and rank."
+"sm_pounce5", "Show TOP 5 pounce players in statistics."
