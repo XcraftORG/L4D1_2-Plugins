@@ -1,4 +1,4 @@
-Hides all weapons and iteams from the infected team or dead survivor until they are (possibly) visible to one of the alive survivors to prevent SI scouting the map
+Forces survivors and infected to spectate if they're AFK after certain time
 
 original plugin from djromero: https://forums.alliedmods.net/showthread.php?p=761203
 
