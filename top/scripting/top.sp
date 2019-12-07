@@ -2,8 +2,10 @@
 #include <sdkhooks>
 #include <sdktools>
 
+new Handle:hEnablePlugin;
 new Handle:OneShotSkeet;
 new Handle:hCvarAnnounce;
+new bool:g_bCvarAllow;
 new bool:g_bRoundEndAnnounce;
 new bool:g_bShotCounted[MAXPLAYERS+1][MAXPLAYERS+1];
 new bool:g_bIsPouncing[MAXPLAYERS+1];
@@ -30,9 +32,11 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
+	hEnablePlugin = CreateConVar("top_skeet_enable", "1", "Enable this plugin?", 262144, false, 0.0, false, 0.0);
 	OneShotSkeet = CreateConVar("skeet_announce_oneshot", "1", "Only count 'One Shot' skeet?", 262144, false, 0.0, false, 0.0);
 	hCvarAnnounce = CreateConVar("top_skeetannounce", "0", "Announce skeet/shots in chatbox when someone skeets.", FCVAR_PLUGIN, true, 0.0);
 	CvarAnnounce = GetConVarInt(hCvarAnnounce);
+	HookConVarChange(hEnablePlugin, ConVarChange_hEnablePlugin);
 	HookConVarChange(hCvarAnnounce, ConVarChange_hCvarAnnounce);
 	
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode:1);
@@ -45,31 +49,77 @@ public OnPluginStart()
 	HookEvent("bot_player_replace", Event_Replace, EventHookMode:1);
 	HookEvent("player_shoved", Event_PlayerShoved, EventHookMode:1);
 	HookEvent("lunge_pounce", Event_LungePounce, EventHookMode:1);
+	
 	BuildPath(PathType:0, datafilepath, 256, "data/%s", "skeet_database.txt");
-	RegConsoleCmd("sm_skeets", Command_Stats, "Show your current statistics.", 0);
-	RegConsoleCmd("sm_rank", Command_Rank, "Show your current rank.", 0);
+	RegConsoleCmd("sm_skeets", Command_Stats, "Show your current skeet statistics and rank.", 0);
 	RegConsoleCmd("sm_top5", Command_Top, "Show TOP 5 players in statistics.", 0);
 }
+
+public OnConfigsExecuted()
+{
+	IsAllowed();
+}
+
+IsAllowed()
+{
+	new bool:bCvarAllow = GetConVarBool(hEnablePlugin);
+
+	if( g_bCvarAllow == false && bCvarAllow == true )
+	{
+		g_bCvarAllow = true;
+		CvarAnnounce = GetConVarInt(hCvarAnnounce);
+		HookEvent("player_hurt", Event_PlayerHurt, EventHookMode:1);
+		HookEvent("ability_use", Event_AbilityUse, EventHookMode:1);
+		HookEvent("player_death", Event_PlayerDeath, EventHookMode:1);
+		HookEvent("round_start", Event_RoundStart, EventHookMode:1);
+		HookEvent("round_end", Event_RoundEnd, EventHookMode:1);
+		HookEvent("weapon_fire", weapon_fire, EventHookMode:1);
+		HookEvent("player_bot_replace", Event_Replace, EventHookMode:1);
+		HookEvent("bot_player_replace", Event_Replace, EventHookMode:1);
+		HookEvent("player_shoved", Event_PlayerShoved, EventHookMode:1);
+		HookEvent("lunge_pounce", Event_LungePounce, EventHookMode:1);
+	}
+	else if( g_bCvarAllow == true && bCvarAllow == false )
+	{
+		g_bCvarAllow = false;
+		UnhookEvent("player_hurt", Event_PlayerHurt, EventHookMode:1);
+		UnhookEvent("ability_use", Event_AbilityUse, EventHookMode:1);
+		UnhookEvent("player_death", Event_PlayerDeath, EventHookMode:1);
+		UnhookEvent("round_start", Event_RoundStart, EventHookMode:1);
+		UnhookEvent("round_end", Event_RoundEnd, EventHookMode:1);
+		UnhookEvent("weapon_fire", weapon_fire, EventHookMode:1);
+		UnhookEvent("player_bot_replace", Event_Replace, EventHookMode:1);
+		UnhookEvent("bot_player_replace", Event_Replace, EventHookMode:1);
+		UnhookEvent("player_shoved", Event_PlayerShoved, EventHookMode:1);
+		UnhookEvent("lunge_pounce", Event_LungePounce, EventHookMode:1);
+	}
+}
+
+public ConVarChange_hEnablePlugin(Handle:convar, const String:oldValue[], const String:newValue[])
+{	
+	IsAllowed();
+}
+
 public ConVarChange_hCvarAnnounce(Handle:convar, const String:oldValue[], const String:newValue[])
 {	
 	if (!StrEqual(oldValue, newValue))
 		CvarAnnounce = StringToInt(newValue);
 }
-public Action:Command_Rank(client, args)
-{
-	ShowSkeetRank(client);
-	return Plugin_Continue;
-}
 
 public Action:Command_Stats(client, args)
 {
-	PrintSkeetsToClient(client);
+	if(g_bCvarAllow)
+	{
+		ShowSkeetRank(client);
+		PrintSkeetsToClient(client);
+	}
 	return Plugin_Continue;
 }
 
 public Action:Command_Top(client, args)
 {
-	PrintTopSkeetersToClient(client);
+	if(g_bCvarAllow)
+		PrintTopSkeetersToClient(client);
 	return Plugin_Continue;
 }
 
@@ -560,15 +610,6 @@ bool:IsValidAliveClient(client)
 public bool:isClient(client)
 {
 	return IsClientConnected(client) && IsClientInGame(client);
-}
-
-public bool:isAcceptableWeapon(String:weapon[])
-{
-	if (StrEqual(weapon, "weapon_autoshotgun", true) || StrEqual(weapon, "weapon_pumpshotgun", true) || StrEqual(weapon, "weapon_smg", true) || StrEqual(weapon, "weapon_rifle", true) || StrEqual(weapon, "weapon_hunting_rifle", true) || StrEqual(weapon, "weapon_pistol", true))
-	{
-		return true;
-	}
-	return false;
 }
 
 public Action:Command_Say(client, args)

@@ -1,6 +1,7 @@
 Announces hunter pounces to the entire server, and save record to data/pounce_database.txt
 
 -convars-
+"pounce_database_enable", "1", "Enable this plugin?"
 "pounce_database_minimum","25","The minimum amount of damage required to record the pounce"
 "pounce_database_announce","0","Announces the pounce in chatbox."
 

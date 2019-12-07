@@ -7,9 +7,11 @@
 #include <sdktools>
 
 //globals
+new Handle:hEnablePlugin;
 new Handle:hMaxPounceDistance;
 new Handle:hMinPounceDistance;
 new Handle:hMaxPounceDamage;
+new bool:g_bCvarAllow;
 //hunter position store
 new Float:infectedPosition[MAXPLAYERS+1][3]; //support up to 32 slots on a server
 //cvars
@@ -33,9 +35,11 @@ public OnPluginStart()
 	hMaxPounceDistance = FindConVar("z_pounce_damage_range_max");
 	hMinPounceDistance = FindConVar("z_pounce_damage_range_min");
 	hMaxPounceDamage = FindConVar("z_hunter_max_pounce_bonus_damage");
+	hEnablePlugin = CreateConVar("pounce_database_enable", "1", "Enable this plugin?", 262144, false, 0.0, false, 0.0);
 	hMinPounceAnnounce = CreateConVar("pounce_database_minimum","25","The minimum amount of damage required to record the pounce", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_NOTIFY);
 	hChat = CreateConVar("pounce_database_announce","0","Announces the pounce in chatbox.", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_NOTIFY);
 	
+	HookConVarChange(hEnablePlugin, ConVarChange_hEnablePlugin);
 	
 	HookConVarChange(hMaxPounceDamage, Convar_MaxPounceDamage);
 	ConVar_maxdmg = GetConVarInt(hMaxPounceDamage);
@@ -54,6 +58,38 @@ public OnPluginStart()
 	RegConsoleCmd("sm_pounce5", Command_Top, "Show TOP 5 pounce players in statistics.", 0);
 }
 
+public OnConfigsExecuted()
+{
+	IsAllowed();
+}
+
+IsAllowed()
+{
+	new bool:bCvarAllow = GetConVarBool(hEnablePlugin);
+
+	if( g_bCvarAllow == false && bCvarAllow == true )
+	{
+		g_bCvarAllow = true;
+		ConVar_maxdmg = GetConVarInt(hMaxPounceDamage);
+		ConVar_max = GetConVarInt(hMaxPounceDistance);
+		ConVar_min = GetConVarInt(hMinPounceDistance);
+		
+		HookEvent("lunge_pounce",Event_PlayerPounced);
+		HookEvent("ability_use",Event_AbilityUse);
+	}
+	else if( g_bCvarAllow == true && bCvarAllow == false )
+	{
+		g_bCvarAllow = false;
+		UnhookEvent("lunge_pounce",Event_PlayerPounced);
+		UnhookEvent("ability_use",Event_AbilityUse);
+	}
+}
+
+public ConVarChange_hEnablePlugin(Handle:convar, const String:oldValue[], const String:newValue[])
+{	
+	IsAllowed();
+}
+
 public OnMapStart()
 {
 	PrecacheSound("player/damage1.wav", true);
@@ -63,14 +99,18 @@ public OnMapStart()
 
 public Action:Command_Stats(client, args)
 {
-	PrintPouncesToClient(client);
-	ShowPounceRank(client);
+	if(g_bCvarAllow)
+	{
+		PrintPouncesToClient(client);
+		ShowPounceRank(client);
+	}
 	return Plugin_Continue;
 }
 
 public Action:Command_Top(client, args)
 {
-	PrintTopPouncers(client);
+	if(g_bCvarAllow)
+		PrintTopPouncers(client);
 	return Plugin_Continue;
 }
 
