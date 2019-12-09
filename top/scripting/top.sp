@@ -39,17 +39,6 @@ public OnPluginStart()
 	HookConVarChange(hEnablePlugin, ConVarChange_hEnablePlugin);
 	HookConVarChange(hCvarAnnounce, ConVarChange_hCvarAnnounce);
 	
-	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode:1);
-	HookEvent("ability_use", Event_AbilityUse, EventHookMode:1);
-	HookEvent("player_death", Event_PlayerDeath, EventHookMode:1);
-	HookEvent("round_start", Event_RoundStart, EventHookMode:1);
-	HookEvent("round_end", Event_RoundEnd, EventHookMode:1);
-	HookEvent("weapon_fire", weapon_fire, EventHookMode:1);
-	HookEvent("player_bot_replace", Event_Replace, EventHookMode:1);
-	HookEvent("bot_player_replace", Event_Replace, EventHookMode:1);
-	HookEvent("player_shoved", Event_PlayerShoved, EventHookMode:1);
-	HookEvent("lunge_pounce", Event_LungePounce, EventHookMode:1);
-	
 	BuildPath(PathType:0, datafilepath, 256, "data/%s", "skeet_database.txt");
 	RegConsoleCmd("sm_skeets", Command_Stats, "Show your current skeet statistics and rank.", 0);
 	RegConsoleCmd("sm_top5", Command_Top, "Show TOP 5 players in statistics.", 0);

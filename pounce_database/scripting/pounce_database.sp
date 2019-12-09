@@ -50,9 +50,6 @@ public OnPluginStart()
 	HookConVarChange(hMinPounceDistance, Convar_Min);
 	ConVar_min = GetConVarInt(hMinPounceDistance);
 	
-	HookEvent("lunge_pounce",Event_PlayerPounced);
-	HookEvent("ability_use",Event_AbilityUse);
-	
 	BuildPath(PathType:0, datafilepath, 256, "data/%s", DATA_FILE_NAME);
 	RegConsoleCmd("sm_pounces", Command_Stats, "Show your current pounce statistics and rank.", 0);
 	RegConsoleCmd("sm_pounce5", Command_Top, "Show TOP 5 pounce players in statistics.", 0);
