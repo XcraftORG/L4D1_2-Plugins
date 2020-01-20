@@ -106,7 +106,7 @@ public OnPluginStart()
 	h_AfkWarnKickTime = CreateConVar("l4d_specafk_warnkicktime", "60", "Warn time before kick (while already on spec)", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkKickTime = CreateConVar("l4d_specafk_kicktime", "30", "time before kick (while already on spec after warn)", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkCheckInterval = CreateConVar("l4d_specafk_checkinteral", "1", "Check/warn interval", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "1", "If kick enabled on afk while on spec", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "0", "If kick enabled on afk while on spec", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkSpecOnConnect = CreateConVar("l4d_specafk_speconconnect", "0", "If player will be forced to spectate on connect", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkShowTeamPanel = CreateConVar("l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	
