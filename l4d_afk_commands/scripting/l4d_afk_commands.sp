@@ -1,3 +1,9 @@
+/*version: 2.2*/
+//修正電腦玩家"m_humanSpectatorUserID" not found
+
+/*version: 2.1*/
+//修正玩家閒置後到了下一關或是重新回合無法換回隊伍
+
 /*version: 2.0*/
 //修正無法用jointeam2 <character> 選擇角色
 //回合結束之前不准擅自更換隊伍
@@ -18,7 +24,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "2.0"
+#define PLUGIN_VERSION    "2.2"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -803,15 +809,12 @@ bool:IsClientIdle(client)
 	
 	for(new i = 1; i <= MaxClients; i++)
 	{
-		if(IsClientConnected(i) && IsClientInGame(i))
+		if(IsClientConnected(i) && IsClientInGame(i) && IsFakeClient(i) && GetClientTeam(i) == 2 && IsAlive(i))
 		{
-			if((GetClientTeam(i) == 2) && IsAlive(i))
+			if(HasEntProp(i, Prop_Send, "m_humanSpectatorUserID"))
 			{
-				if(IsFakeClient(i))
-				{
-					if(GetClientOfUserId(GetEntProp(i, Prop_Send, "m_humanSpectatorUserID")) == client)
+				if(GetClientOfUserId(GetEntProp(i, Prop_Send, "m_humanSpectatorUserID")) == client)
 						return true;
-				}
 			}
 		}
 	}
@@ -836,22 +839,14 @@ stock FindBotToTakeOver()
 
 bool:HasIdlePlayer(bot)
 {
-	if(!IsFakeClient(bot))
-		return false;
-	
-	if(IsClientConnected(bot) && IsClientInGame(bot))
+	if(IsClientConnected(bot) && IsClientInGame(bot) && IsFakeClient(bot) && GetClientTeam(bot) == 2 && IsAlive(bot))
 	{
-		if((GetClientTeam(bot) == 2) && IsAlive(bot))
+		if(HasEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))
 		{
-			if(IsFakeClient(bot))
+			new client = GetClientOfUserId(GetEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))	;		
+			if(client > 0 && client <= MaxClients && IsClientInGame(client) && !IsFakeClient(client) && IsClientObserver(client))
 			{
-				new client = GetClientOfUserId(GetEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))	;		
-				if(client)
-				{
-					if(!IsClientInGame(client)) return false;
-					if(!IsFakeClient(client) && (GetClientTeam(client) == 1))
-						return true;
-				}
+				return true;
 			}
 		}
 	}
@@ -916,12 +911,12 @@ public Action:ClientReallyChangeTeam(Handle:timer, any:client)
 			}
 			else
 			{
-				if(!LEFT_SAFE_ROOM)
+				new oldteam = GetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM);
+				if(!LEFT_SAFE_ROOM || oldteam == 0)
 					SetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM, newteam);
 				else
 				{
-					new oldteam = GetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM);
-					//PrintToChatAll("%N newteam: %d, oldteam: %d",client,oldteam,newteam);
+					//PrintToChatAll("%N newteam: %d, oldteam: %d",client,newteam,oldteam);
 					if(newteam != oldteam)
 					{
 						if(oldteam == 4 && !(newteam == 2 && !IsPlayerAlive(client)) ) //player survivor death
