@@ -32,7 +32,7 @@ public OnPluginStart()
 	LoadTranslations("common.phrases");
 	hGameConf = LoadGameConfigFile("l4drespawn");
 	
-	CreateConVar("l4d_sm_respawn_version", PLUGIN_VERSION, "L4D SM Respawn Version", FCVAR_PLUGIN | FCVAR_SPONLY | FCVAR_NOTIFY);
+	CreateConVar("l4d_sm_respawn_version", PLUGIN_VERSION, "L4D SM Respawn Version", FCVAR_SPONLY | FCVAR_NOTIFY);
 	RegAdminCmd("sm_respawn", Command_Respawn, ADMFLAG_BAN, "sm_respawn <player1> [player2] ... [playerN] - respawn all listed players and teleport them where you aim");
 
 	if (hGameConf != INVALID_HANDLE)
@@ -117,7 +117,7 @@ static RespawnPlayer(client, player_id)
 			SDKCall(hRoundRespawn, player_id);
 			
 			//CheatCommand(player_id, "give", "first_aid_kit");
-			//CheatCommand(player_id, "give", "smg");
+			CheatCommand(player_id, "give", "smg");
 			
 			if(canTeleport)
 			{
@@ -128,19 +128,7 @@ static RespawnPlayer(client, player_id)
 		
 		case 3:
 		{
-			decl String:game_name[24];
-			GetGameFolderName(game_name, sizeof(game_name));
-			if (StrEqual(game_name, "left4dead", false)) 
-			{
-				ReplyToCommand(client, "[SM] Failed! Target is not survivor");
-				return;
-			}
-		
-			SDKCall(hState_Transition, player_id, 8);
-			SDKCall(hBecomeGhost, player_id, 1);
-			SDKCall(hState_Transition, player_id, 6);
-			SDKCall(hBecomeGhost, player_id, 1);
-			ShowActivity2(client, "[SM] ", "Respawned target '%N'", player_id);
+			ReplyToCommand(client, "[SM] Failed! Target is not survivor");
 		}
 		case 1:
 		{
