@@ -146,6 +146,8 @@ public OnPluginStart()
 	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
 	HookConVarChange(g_hGameMode, ConVarChange_CvarGameMode);
 	arrayclientswitchteam = CreateArray(ByteCountToCells(STEAMID_SIZE));
+	
+	AutoExecConfig(true, "l4d_afk_commands");
 }
 
 public OnMapStart()
