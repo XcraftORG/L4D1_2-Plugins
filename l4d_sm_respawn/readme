@@ -1,28 +1,16 @@
-Let you(adm) respawn Players by console
+Allows players to be respawned at one's crosshair.
 
--command-
-"l4d_sm_respawn_version", L4D SM Respawn Version"
- *adm command
-  -sm_respawn <player>
-  
--note-
-If you want this in your sm_admin menu, add something like this to your addons/sourcemod/configs/adminmenu_custom.cfg
+-ChangeLog-
+v2.2
+-Only respawn Dead Survivor by Harry
 
-"Commands"
-{
-    "PlayerCommands"
-    {
-        "Respawn Survivor"
-        {
-            "cmd"        "sm_respawn #1"
-            "admin"        "sm_kick"
-            "execute"    "player"
-            "1"
-            {
-                "type"        "player"
-                "method"    "name"
-                "title"        "Player:"
-            }
-        }
-    }
-}
+v2.1
+-original post: https://forums.alliedmods.net/showthread.php?p=2693455
+
+-Convars-
+"l4d_sm_respawn_loadout", 		"smg", "Respawn players with this loadout"
+"l4d_sm_respawn_showaction", 	"1", 	"Notify in chat and log action about respawn? (0 - No, 1 - Yes)"
+"l4d_sm_respawn_adminmenu", 	"1", 	"Add 'Respawn player' item in admin menu under 'Player commands' category? (0 - No, 1 - Yes)"
+
+-Command-
+-sm_respawn <player> (*adm only)

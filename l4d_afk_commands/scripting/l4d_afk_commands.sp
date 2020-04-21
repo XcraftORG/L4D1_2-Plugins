@@ -1,3 +1,6 @@
+/*version: 2.3*/
+//fixed Exception reported: Language phrase "No matching client" not found
+
 /*version: 2.2*/
 //修正電腦玩家"m_humanSpectatorUserID" not found
 
@@ -24,7 +27,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "2.2"
+#define PLUGIN_VERSION    "2.3"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -81,7 +84,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 public OnPluginStart()
 {
 
-
+	LoadTranslations("common.phrases");
 	RegConsoleCmd("sm_afk", TurnClientToSpectate);
 	RegConsoleCmd("sm_s", TurnClientToSpectate);
 	RegConsoleCmd("sm_join", TurnClientToSurvivors);
@@ -277,8 +280,13 @@ public Event_Survivor_RELEASE (Handle:event, const String:name[], bool:dontBroad
 
 public OnClientPutInServer(client)
 {
-	Clear(client);
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);	
+}
+
+public bool:OnClientConnect(client)
+{
+	Clear(client);
+	return true;
 }
 
 public OnClientDisconnect(client)
@@ -942,9 +950,8 @@ public Action:ClientReallyChangeTeam(Handle:timer, any:client)
 	//PrintToChatAll("client: %N change Team: %d clientteam[client]:%d",client,GetClientTeam(client),clientteam[client]);
 	if(GetClientTeam(client) != clientteam[client])
 	{
-		clientteam[client] = GetClientTeam(client);
-		StartChangeTeamCoolDown(client);
-		GetClientTeam(client);
+		if(clientteam[client] != 0) StartChangeTeamCoolDown(client);
+		clientteam[client] = GetClientTeam(client);		
 	}
 }
 
