@@ -1,0 +1,9 @@
+Allows additional survivor/infected players in coop, versus, and survival
+
+-Require-
+You still need to use l4dtoolz to unlock survivor limit
+
+-Convars-
+"l4d_multislots_max_survivors", "8", "How many survivors allowed?"
+"l4d_multislots_max_infected", "8", "How many infected allowed?"
+"l4d_multislots_kickafk", "2", "Kick idle players? (0 = no  1 = player 5 min, admins kickimmune  2 = player 5 min, admins 10 min)"

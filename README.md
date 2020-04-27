@@ -1,6 +1,6 @@
 # L4D1&2-Plugins  by Harry Potter
 Help server to record, make server more fun, and more useful plugins for adm.
-> All plugins in here apply to both L4D1/2 (last edited:2020/4/22)
+> All plugins in here apply to both L4D1/2 (last edited:2020/4/27)
 # Require
 * Clean Servers:
   * [Sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) (or newer), [Metamod](https://www.metamodsource.net/downloads.php?branch=stable)
@@ -28,6 +28,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>l4d_wind</b>: Create a survivor bot in game
 * <b>admin_hp</b>: Adm type !givehp to set survivor team full health
 * <b>pounce_database</b>: Pounce Announce Edition (Database)
+* <b>l4dmultislots</b>: Allows additional survivor/infected players in coop, versus, and survival
 # Scripting Compiler
 * [sourcemod 1.63](https://github.com/fbef0102/L4D1-Competitive-Plugins/releases/download/v1.0/sourcemod_1.63_Compiler.zip): most of source codes
 * [sourcemod 1.9](https://github.com/fbef0102/L4D1-Competitive-Plugins/releases/download/v1.0/sourcemod_1.9_Compiler.zip): few source codes need new compiler

@@ -1,3 +1,6 @@
+/*version: 2.4*/
+//fixed InCoolDownTime error
+
 /*version: 2.3*/
 //fixed Exception reported: Language phrase "No matching client" not found
 
@@ -27,7 +30,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "2.3"
+#define PLUGIN_VERSION    "2.4"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -945,7 +948,7 @@ public Action:ClientReallyChangeTeam(Handle:timer, any:client)
 		}
 	}
 	
-	if(!LEFT_SAFE_ROOM && InCoolDownTime[client]) return;
+	if(LEFT_SAFE_ROOM && InCoolDownTime[client]) return;
 	
 	//PrintToChatAll("client: %N change Team: %d clientteam[client]:%d",client,GetClientTeam(client),clientteam[client]);
 	if(GetClientTeam(client) != clientteam[client])
