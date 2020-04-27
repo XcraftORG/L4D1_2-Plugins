@@ -1,10 +1,9 @@
-#define PLUGIN_VERSION		"0.4"
+#define PLUGIN_VERSION		"0.5"
 
 /*
 	ChangeLog:
 	0.5 (16-6-2019)
-	 - say !mp3off to turn off music for some people who don't like it
-	 - say !mp3on to turn on music for some people who don't like it
+	 - say !mp3off or !mp3on to turn off/on music
 	
 	0.4 (15-6-2019)
 	 - playing music to all client when first round and second round start.
