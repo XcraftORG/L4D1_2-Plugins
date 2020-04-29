@@ -1,5 +1,5 @@
 shoot your teammate = shoot yourself
 
--convar-
-anti_friendly_fire_enable 1
+-Convar-
 //Enable anti-friendly_fire plugin [0-Disable,1-Enable]
+anti_friendly_fire_enable 1

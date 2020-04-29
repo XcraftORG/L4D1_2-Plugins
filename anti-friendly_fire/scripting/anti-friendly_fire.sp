@@ -1,9 +1,16 @@
 #pragma semicolon 1
-
+#pragma newdecls required //強制1.7以後的新語法
 #include <sourcemod>
 #include <sdktools>
-Handle g_hEnable;
+
 #define CLASSNAME_LENGTH 64
+#define L4D_TEAM_SURVIVOR
+enum CountdownTimer
+{
+	CTimer_Null = 0 /**< Invalid Timer when lookup fails */
+}
+
+ConVar g_hEnable;
 
 public Plugin myinfo = 
 {
@@ -19,10 +26,9 @@ public void OnPluginStart()
 	g_hEnable = CreateConVar(	"anti_friendly_fire_enable", "1",
 								"Enable anti-friendly_fire plugin [0-Disable,1-Enable]",
 								FCVAR_NOTIFY, true, 0.0, true, 1.0 );
-	HookEvent("player_hurt", eventPlayerHurt);
 }	
 
-public Action:eventPlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
+public Action eventPlayerHurt(Event event, const char[] name, bool dontBroadcast) 
 {
 	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
@@ -32,12 +38,12 @@ public Action:eventPlayerHurt(Handle:event, const String:name[], bool:dontBroadc
 	char WeaponName[CLASSNAME_LENGTH];
 	GetEventString(event, "weapon", WeaponName, sizeof(WeaponName));
 	
-	if(StrEqual(WeaponName, "inferno") || StrEqual(WeaponName, "pipe_bomb") || StrEqual(WeaponName, "pipe_bomb") || damage <=0) return Plugin_Continue;
+	if(StrEqual(WeaponName, "inferno") || StrEqual(WeaponName, "pipe_bomb") || StrEqual(WeaponName, "fire_cracker_blast") || damage <=0) return Plugin_Continue;
 	
 	int health = GetEventInt(event, "health");
 	SetEntityHealth(victim, health + damage);
 	
-	//PrintToChatAll("victim: %d,attacker:%d ,WeaponName is %s, damage is %f",victim,attacker,WeaponName,damage);
+	PrintToChatAll("victim: %d,attacker:%d ,WeaponName is %s, damage is %f",victim,attacker,WeaponName,damage);
 	
 	float attackerPos[3];
 	char strDamage[16],strDamageTarget[16];
@@ -68,7 +74,7 @@ public Action:eventPlayerHurt(Handle:event, const String:name[], bool:dontBroadc
 	return Plugin_Handled;
 }
 
-stock IsClientAndInGame(client)
+stock bool IsClientAndInGame(int client)
 {
 	if (0 < client && client < MaxClients)
 	{	
