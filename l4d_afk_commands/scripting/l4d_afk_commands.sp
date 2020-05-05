@@ -788,22 +788,27 @@ public Action:TakeOverBot(Handle:timer, any:client)
 		return;
 	}
 	
-	static Handle:hSetHumanSpec;
-	if (hSetHumanSpec == INVALID_HANDLE)
+	if(IsPlayerAlive(bot))
 	{
-		new Handle:hGameConf	;	
-		hGameConf = LoadGameConfigFile("l4d_afk_commands");
+		static Handle:hSetHumanSpec;
+		if (hSetHumanSpec == INVALID_HANDLE)
+		{
+			new Handle:hGameConf	;	
+			hGameConf = LoadGameConfigFile("l4d_afk_commands");
+			
+			StartPrepSDKCall(SDKCall_Player);
+			PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "SetHumanSpec");
+			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+			hSetHumanSpec = EndPrepSDKCall();
+		}
 		
-		StartPrepSDKCall(SDKCall_Player);
-		PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "SetHumanSpec");
-		PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
-		hSetHumanSpec = EndPrepSDKCall();
+		SDKCall(hSetHumanSpec, bot, client);
+		SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
 	}
-	
-	SDKCall(hSetHumanSpec, bot, client);
-	SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
-	
-	
+	else
+	{
+		CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
+	}
 	return;
 }
 
@@ -842,7 +847,7 @@ stock FindBotToTakeOver()
 		{
 			if(IsClientInGame(i))
 			{
-				if (IsFakeClient(i) && GetClientTeam(i)==2 && IsAlive(i) && !HasIdlePlayer(i))
+				if (IsFakeClient(i) && GetClientTeam(i)==2 && !HasIdlePlayer(i))
 					return i;
 			}
 		}
