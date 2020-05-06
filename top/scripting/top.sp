@@ -5,7 +5,11 @@
 new Handle:hEnablePlugin;
 new Handle:OneShotSkeet;
 new Handle:hCvarAnnounce;
+new Handle:g_hCvarMPGameMode;
+new Handle:g_hCvarModesTog;
+new Handle:g_hCvarSurvivorRequired;
 new bool:g_bCvarAllow;
+new Handle:g_hCvarSurvivorLimit;
 new bool:g_bRoundEndAnnounce;
 new bool:g_bShotCounted[MAXPLAYERS+1][MAXPLAYERS+1];
 new bool:g_bIsPouncing[MAXPLAYERS+1];
@@ -32,16 +36,28 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	hEnablePlugin = CreateConVar("top_skeet_enable", "1", "Enable this plugin?", 262144, false, 0.0, false, 0.0);
-	OneShotSkeet = CreateConVar("skeet_announce_oneshot", "1", "Only count 'One Shot' skeet?", 262144, false, 0.0, false, 0.0);
-	hCvarAnnounce = CreateConVar("top_skeetannounce", "0", "Announce skeet/shots in chatbox when someone skeets.", FCVAR_PLUGIN, true, 0.0);
+	hEnablePlugin = CreateConVar("top_skeet_enable", "1", "Enable this plugin?", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	OneShotSkeet = CreateConVar("skeet_announce_oneshot", "1", "Only count 'One Shot' skeet?", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	hCvarAnnounce = CreateConVar("top_skeetannounce", "0", "Announce skeet/shots in chatbox when someone skeets.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	CvarAnnounce = GetConVarInt(hCvarAnnounce);
-	HookConVarChange(hEnablePlugin, ConVarChange_hEnablePlugin);
+	g_hCvarModesTog =	CreateConVar("top_skeet_modes_tog",		"4",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus. Add numbers together.", FCVAR_SPONLY|FCVAR_NOTIFY );
+	g_hCvarSurvivorRequired =	CreateConVar("top_skeet_survivors_required",		"4",			"Numbers of Survivors required at least to enable this plugin", FCVAR_SPONLY|FCVAR_NOTIFY );
+
 	HookConVarChange(hCvarAnnounce, ConVarChange_hCvarAnnounce);
 	
+	g_hCvarMPGameMode = FindConVar("mp_gamemode");
+	g_hCvarSurvivorLimit = FindConVar("survivor_limit");
+	HookConVarChange(hEnablePlugin, ConVarChanged_Allow);
+	HookConVarChange(g_hCvarMPGameMode, ConVarChanged_Allow);
+	HookConVarChange(g_hCvarModesTog, ConVarChanged_Allow);
+	HookConVarChange(g_hCvarSurvivorRequired, ConVarChanged_Allow);
+	HookConVarChange(g_hCvarSurvivorLimit, ConVarChanged_Allow);
+
 	BuildPath(PathType:0, datafilepath, 256, "data/%s", "skeet_database.txt");
 	RegConsoleCmd("sm_skeets", Command_Stats, "Show your current skeet statistics and rank.", 0);
 	RegConsoleCmd("sm_top5", Command_Top, "Show TOP 5 players in statistics.", 0);
+
+	AutoExecConfig(true,"skeet_database");
 }
 
 public OnConfigsExecuted()
@@ -52,8 +68,9 @@ public OnConfigsExecuted()
 IsAllowed()
 {
 	new bool:bCvarAllow = GetConVarBool(hEnablePlugin);
-
-	if( g_bCvarAllow == false && bCvarAllow == true )
+	new bool:bAllowMode = IsAllowedGameMode();
+	new SurvivorsLimit = GetConVarInt(g_hCvarSurvivorLimit);
+	if( g_bCvarAllow == false && bCvarAllow == true && bAllowMode == true && SurvivorsLimit>= GetConVarInt(g_hCvarSurvivorRequired))
 	{
 		g_bCvarAllow = true;
 		CvarAnnounce = GetConVarInt(hCvarAnnounce);
@@ -68,7 +85,7 @@ IsAllowed()
 		HookEvent("player_shoved", Event_PlayerShoved, EventHookMode:1);
 		HookEvent("lunge_pounce", Event_LungePounce, EventHookMode:1);
 	}
-	else if( g_bCvarAllow == true && bCvarAllow == false )
+	else if( g_bCvarAllow == true && (bCvarAllow == false || bAllowMode == false || SurvivorsLimit < GetConVarInt(g_hCvarSurvivorRequired)) )
 	{
 		g_bCvarAllow = false;
 		UnhookEvent("player_hurt", Event_PlayerHurt, EventHookMode:1);
@@ -84,7 +101,40 @@ IsAllowed()
 	}
 }
 
-public ConVarChange_hEnablePlugin(Handle:convar, const String:oldValue[], const String:newValue[])
+bool:IsAllowedGameMode()
+{
+	if( g_hCvarMPGameMode == INVALID_HANDLE )
+		return false;
+
+	new iCvarModesTog = GetConVarInt(g_hCvarModesTog);
+	if( iCvarModesTog == 0) return true;
+
+	decl String:CurrentGameMode[32];
+	GetConVarString(g_hCvarMPGameMode, CurrentGameMode, sizeof(CurrentGameMode));
+	new g_iCurrentMode = 0;
+	if(StrEqual(CurrentGameMode,"coop", false))
+	{
+		g_iCurrentMode = 1;
+	}
+	else if (StrEqual(CurrentGameMode,"versus", false))
+	{
+		g_iCurrentMode = 4;
+	}
+	else if (StrEqual(CurrentGameMode,"survival", false))
+	{
+		g_iCurrentMode = 2;
+	}
+
+	if( g_iCurrentMode == 0 )
+		return false;
+		
+	if(!(iCvarModesTog & g_iCurrentMode))
+		return false;
+
+	return true;
+}
+
+public ConVarChanged_Allow(Handle:convar, const String:oldValue[], const String:newValue[])
 {	
 	IsAllowed();
 }

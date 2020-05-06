@@ -11,7 +11,11 @@ new Handle:hEnablePlugin;
 new Handle:hMaxPounceDistance;
 new Handle:hMinPounceDistance;
 new Handle:hMaxPounceDamage;
+new Handle:g_hCvarMPGameMode;
+new Handle:g_hCvarModesTog;
+new Handle:g_hCvarSurvivorRequired;
 new bool:g_bCvarAllow;
+new Handle:g_hCvarSurvivorLimit;
 //hunter position store
 new Float:infectedPosition[MAXPLAYERS+1][3]; //support up to 32 slots on a server
 //cvars
@@ -36,11 +40,11 @@ public OnPluginStart()
 	hMinPounceDistance = FindConVar("z_pounce_damage_range_min");
 	hMaxPounceDamage = FindConVar("z_hunter_max_pounce_bonus_damage");
 	hEnablePlugin = CreateConVar("pounce_database_enable", "1", "Enable this plugin?", 262144, false, 0.0, false, 0.0);
-	hMinPounceAnnounce = CreateConVar("pounce_database_minimum","25","The minimum amount of damage required to record the pounce", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_NOTIFY);
-	hChat = CreateConVar("pounce_database_announce","0","Announces the pounce in chatbox.", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_NOTIFY);
-	
-	HookConVarChange(hEnablePlugin, ConVarChange_hEnablePlugin);
-	
+	hMinPounceAnnounce = CreateConVar("pounce_database_minimum","25","The minimum amount of damage required to record the pounce", FCVAR_SPONLY|FCVAR_NOTIFY);
+	hChat = CreateConVar("pounce_database_announce","0","Announces the pounce in chatbox.", FCVAR_SPONLY|FCVAR_NOTIFY);
+	g_hCvarModesTog =	CreateConVar("pounce_database_modes_tog",		"4",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus. Add numbers together.", FCVAR_SPONLY|FCVAR_NOTIFY );
+	g_hCvarSurvivorRequired =	CreateConVar("pounce_database_survivors_required",		"4",			"Numbers of Survivors required at least to enable this plugin", FCVAR_SPONLY|FCVAR_NOTIFY );
+
 	HookConVarChange(hMaxPounceDamage, Convar_MaxPounceDamage);
 	ConVar_maxdmg = GetConVarInt(hMaxPounceDamage);
 	
@@ -49,10 +53,20 @@ public OnPluginStart()
 	
 	HookConVarChange(hMinPounceDistance, Convar_Min);
 	ConVar_min = GetConVarInt(hMinPounceDistance);
-	
+
+	g_hCvarMPGameMode = FindConVar("mp_gamemode");
+	g_hCvarSurvivorLimit = FindConVar("survivor_limit");
+	HookConVarChange(hEnablePlugin, ConVarChanged_Allow);
+	HookConVarChange(g_hCvarMPGameMode, ConVarChanged_Allow);
+	HookConVarChange(g_hCvarModesTog, ConVarChanged_Allow);
+	HookConVarChange(g_hCvarSurvivorRequired, ConVarChanged_Allow);
+	HookConVarChange(g_hCvarSurvivorLimit, ConVarChanged_Allow);
+
 	BuildPath(PathType:0, datafilepath, 256, "data/%s", DATA_FILE_NAME);
 	RegConsoleCmd("sm_pounces", Command_Stats, "Show your current pounce statistics and rank.", 0);
 	RegConsoleCmd("sm_pounce5", Command_Top, "Show TOP 5 pounce players in statistics.", 0);
+
+	AutoExecConfig(true,"pounce_database");
 }
 
 public OnConfigsExecuted()
@@ -63,8 +77,9 @@ public OnConfigsExecuted()
 IsAllowed()
 {
 	new bool:bCvarAllow = GetConVarBool(hEnablePlugin);
-
-	if( g_bCvarAllow == false && bCvarAllow == true )
+	new bool:bAllowMode = IsAllowedGameMode();
+	new SurvivorsLimit = GetConVarInt(g_hCvarSurvivorLimit);
+	if( g_bCvarAllow == false && bCvarAllow == true && bAllowMode == true && SurvivorsLimit>= GetConVarInt(g_hCvarSurvivorRequired))
 	{
 		g_bCvarAllow = true;
 		ConVar_maxdmg = GetConVarInt(hMaxPounceDamage);
@@ -74,7 +89,7 @@ IsAllowed()
 		HookEvent("lunge_pounce",Event_PlayerPounced);
 		HookEvent("ability_use",Event_AbilityUse);
 	}
-	else if( g_bCvarAllow == true && bCvarAllow == false )
+	else if( g_bCvarAllow == true && (bCvarAllow == false || bAllowMode == false || SurvivorsLimit < GetConVarInt(g_hCvarSurvivorRequired)) )
 	{
 		g_bCvarAllow = false;
 		UnhookEvent("lunge_pounce",Event_PlayerPounced);
@@ -82,7 +97,41 @@ IsAllowed()
 	}
 }
 
-public ConVarChange_hEnablePlugin(Handle:convar, const String:oldValue[], const String:newValue[])
+
+bool:IsAllowedGameMode()
+{
+	if( g_hCvarMPGameMode == INVALID_HANDLE )
+		return false;
+
+	new iCvarModesTog = GetConVarInt(g_hCvarModesTog);
+	if( iCvarModesTog == 0) return true;
+
+	decl String:CurrentGameMode[32];
+	GetConVarString(g_hCvarMPGameMode, CurrentGameMode, sizeof(CurrentGameMode));
+	new g_iCurrentMode = 0;
+	if(StrEqual(CurrentGameMode,"coop", false))
+	{
+		g_iCurrentMode = 1;
+	}
+	else if (StrEqual(CurrentGameMode,"versus", false))
+	{
+		g_iCurrentMode = 4;
+	}
+	else if (StrEqual(CurrentGameMode,"survival", false))
+	{
+		g_iCurrentMode = 2;
+	}
+
+	if( g_iCurrentMode == 0 )
+		return false;
+		
+	if(!(iCvarModesTog & g_iCurrentMode))
+		return false;
+
+	return true;
+}
+
+public ConVarChanged_Allow(Handle:convar, const String:oldValue[], const String:newValue[])
 {	
 	IsAllowed();
 }
