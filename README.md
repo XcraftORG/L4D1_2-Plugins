@@ -29,6 +29,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>admin_hp</b>: Adm type !givehp to set survivor team full health
 * <b>pounce_database</b>: Pounce Announce Edition (Database)
 * <b>l4dmultislots</b>: Allows additional survivor/infected players in coop, versus, and survival
+* <b>hp_tank_show: Display Tank HP status on his head
 # Scripting Compiler
 * [sourcemod 1.63](https://github.com/fbef0102/L4D1-Competitive-Plugins/releases/download/v1.0/sourcemod_1.63_Compiler.zip): most of source codes
 * [sourcemod 1.9](https://github.com/fbef0102/L4D1-Competitive-Plugins/releases/download/v1.0/sourcemod_1.9_Compiler.zip): few source codes need new compiler
