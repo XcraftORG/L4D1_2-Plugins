@@ -26,9 +26,11 @@ public void OnPluginStart()
 	g_hEnable = CreateConVar(	"anti_friendly_fire_enable", "1",
 								"Enable anti-friendly_fire plugin [0-Disable,1-Enable]",
 								FCVAR_NOTIFY, true, 0.0, true, 1.0 );
+								
+	HookEvent("player_hurt", Event_PlayerHurt);
 }	
 
-public Action eventPlayerHurt(Event event, const char[] name, bool dontBroadcast) 
+public Action Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast) 
 {
 	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
