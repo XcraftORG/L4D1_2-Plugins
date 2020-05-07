@@ -45,7 +45,7 @@ public Action Event_PlayerHurt(Event event, const char[] name, bool dontBroadcas
 	int health = GetEventInt(event, "health");
 	SetEntityHealth(victim, health + damage);
 	
-	PrintToChatAll("victim: %d,attacker:%d ,WeaponName is %s, damage is %f",victim,attacker,WeaponName,damage);
+	//PrintToChatAll("victim: %d,attacker:%d ,WeaponName is %s, damage is %f",victim,attacker,WeaponName,damage);
 	
 	float attackerPos[3];
 	char strDamage[16],strDamageTarget[16];
