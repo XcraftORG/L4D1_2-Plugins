@@ -1,3 +1,6 @@
+/*version: 2.5*/
+//Improve code
+
 /*version: 2.4*/
 //fixed InCoolDownTime error
 
@@ -30,7 +33,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "2.4"
+#define PLUGIN_VERSION    "2.5"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -43,10 +46,7 @@ static Float:CoolTime;
 static Handle:cvarCoolTime					= INVALID_HANDLE;
 static bool:bClientJoinedTeam[MAXPLAYERS+1] = false; //在冷卻時間是否嘗試加入
 static Float:g_iSpectatePenaltyCounter[MAXPLAYERS+1] ;//各自的冷卻時間
-static bool:clientBusy[MAXPLAYERS+1];//是否被特感控
-static bool:b_IsL4D2;
-#define ZOMBIECLASS_CHARGER	6
-static ChargerGot[MAXPLAYERS+1];//Charger抓住的人
+static bool:clientBusy[MAXPLAYERS+1];//是否被witch抓
 static WitchTarget[5000];//WitchTarget[妹子元素編號]=鎖定的玩家
 static clientteam[MAXPLAYERS+1];//玩家換隊成功之後的隊伍
 static Handle:cvarDeadChangeTeamEnable					= INVALID_HANDLE;
@@ -74,14 +74,13 @@ public Plugin:myinfo =
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max) 
 {
 	// Checks to see if the game is a L4D game. If it is, check if its the sequel. L4DVersion is L4D if false, L4D2 if true.
-	decl String:GameName[64];
-	GetGameFolderName(GameName, sizeof(GameName));
-	if (StrContains(GameName, "left4dead", false) == -1)
-		return APLRes_Failure; 
-	else if (StrEqual(GameName, "left4dead2", false))
-		b_IsL4D2 = true;
-	
-	return APLRes_Success; 
+	EngineVersion test = GetEngineVersion();
+	if( test != Engine_Left4Dead && test != Engine_Left4Dead2 )
+	{
+		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
+		return APLRes_SilentFailure;
+	}
+	return APLRes_Success;
 }
 
 public OnPluginStart()
@@ -126,18 +125,7 @@ public OnPluginStart()
 	HookConVarChange(cvarDeadChangeTeamEnable, ConVarChange_cvarDeadChangeTeamEnable);
 	HookConVarChange(cvarEnforceTeamSwitch, ConVarChange_cvarEnforceTeamSwitch);
 	
-	HookEvent("lunge_pounce", Event_Survivor_GOT);
-	HookEvent("tongue_grab", Event_Survivor_GOT);
-	HookEvent("pounce_stopped", Event_Survivor_RELEASE);
-	HookEvent("tongue_release", Event_Survivor_RELEASE);
 	HookEvent("witch_harasser_set", OnWitchWokeup);
-	if(b_IsL4D2)
-	{
-		HookEvent("charger_carry_start", Event_Survivor_GOT);
-		HookEvent("jockey_ride", Event_Survivor_GOT);
-		HookEvent("charger_pummel_end", Event_Survivor_RELEASE);
-		HookEvent("jockey_ride_end", Event_Survivor_RELEASE);
-	}
 	
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_death", Event_PlayerDeath);
@@ -210,12 +198,7 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(!IsClientAndInGame(victim)) return;
 	clientBusy[victim] = false;
-	
-	if(GetClientTeam(victim) == 3 && GetEntProp(victim,Prop_Send,"m_zombieClass") == ZOMBIECLASS_CHARGER && ChargerGot[victim] > 0)
-	{
-		clientBusy[ChargerGot[victim]] = false;
-		ChargerGot[victim] = 0;
-	}
+
 	
 	if(!EnforceTeamSwitch && IsClientInGame(victim) && !IsFakeClient(victim) && GetClientTeam(victim) == 2)
 	{
@@ -258,27 +241,6 @@ public Action:checksurvivorspawn(Handle:timer,any:client)
 			SetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM, 2);
 		}			
 	}
-}
-
-public Event_Survivor_GOT (Handle:event, const String:name[], bool:dontBroadcast)
-{
-	//PrintToChatAll("Got!");
-	new victim = GetClientOfUserId(GetEventInt(event, "victim"));
-    
-	clientBusy[victim] = true;
-	
-	new attacker = GetClientOfUserId(GetEventInt(event, "userid"));
-	if(IsClientAndInGame(attacker) && GetClientTeam(attacker) == 3 && GetEntProp(attacker,Prop_Send,"m_zombieClass") == ZOMBIECLASS_CHARGER)
-	{
-		ChargerGot[attacker] = victim;
-	}
-}
-public Event_Survivor_RELEASE (Handle:event, const String:name[], bool:dontBroadcast)
-{
-	//PrintToChatAll("release");
-	new victim = GetClientOfUserId(GetEventInt(event, "victim"));
-	
-	clientBusy[victim] = false;
 }
 
 public OnClientPutInServer(client)
@@ -412,7 +374,6 @@ Clear(client = -1)
 			InCoolDownTime[i] = false;
 			bClientJoinedTeam[i] = false;
 			clientBusy[i] = false;
-			ChargerGot[i] = 0;
 			clientteam[i] = 0;
 		}
 		LEFT_SAFE_ROOM = false;
@@ -422,7 +383,6 @@ Clear(client = -1)
 		InCoolDownTime[client] = false;
 		bClientJoinedTeam[client] = false;
 		clientBusy[client] = false;
-		ChargerGot[client] = -1;
 		clientteam[client] = 0;
 	}
 }
@@ -781,11 +741,15 @@ public Action:TakeOverBot(Handle:timer, any:client)
 	if (GetClientTeam(client) == 2) return;
 	if (IsFakeClient(client)) return;
 	
-	new bot = FindBotToTakeOver()	;
+	new bot = FindBotToTakeOver(true)	;
 	if (bot==0)
 	{
-		PrintHintText(client, "[TS] 沒有人類bot能取代.");
-		return;
+		bot = FindBotToTakeOver(false);
+		if (bot==0)
+		{
+			PrintHintText(client, "[TS] 沒有人類bot能取代.");
+			return;
+		}
 	}
 	
 	if(IsPlayerAlive(bot))
@@ -839,7 +803,7 @@ bool:IsClientIdle(client)
 	return false;
 }
 
-stock FindBotToTakeOver()
+stock FindBotToTakeOver(bool alive)
 {
 	for (new i = 1; i <= MaxClients; i++)
 	{
@@ -847,7 +811,7 @@ stock FindBotToTakeOver()
 		{
 			if(IsClientInGame(i))
 			{
-				if (IsFakeClient(i) && GetClientTeam(i)==2 && !HasIdlePlayer(i))
+				if (IsFakeClient(i) && GetClientTeam(i)==2 && !HasIdlePlayer(i) && IsPlayerAlive(i) == alive)
 					return i;
 			}
 		}
@@ -873,7 +837,7 @@ bool:HasIdlePlayer(bot)
 
 bool:CanClientChangeTeam(client,changeteam)
 {
-	if (clientBusy[client])
+	if (L4D2_GetInfectedAttacker(client) != -1)
 	{
 		PrintHintText(client, "[TS] 特感抓住期間禁止換隊.");
 		return false;
@@ -1033,4 +997,45 @@ bool:LeftStartArea()
 		}
 	}
 	return false;
+}
+
+stock L4D2_GetInfectedAttacker(client)
+{
+    new attacker;
+
+    /* Charger */
+    attacker = GetEntPropEnt(client, Prop_Send, "m_pummelAttacker");
+    if (attacker > 0)
+    {
+        return attacker;
+    }
+
+    attacker = GetEntPropEnt(client, Prop_Send, "m_carryAttacker");
+    if (attacker > 0)
+    {
+        return attacker;
+    }
+
+    /* Hunter */
+    attacker = GetEntPropEnt(client, Prop_Send, "m_pounceAttacker");
+    if (attacker > 0)
+    {
+        return attacker;
+    }
+
+    /* Smoker */
+    attacker = GetEntPropEnt(client, Prop_Send, "m_tongueOwner");
+    if (attacker > 0)
+    {
+        return attacker;
+    }
+
+    /* Jockey */
+    attacker = GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker");
+    if (attacker > 0)
+    {
+        return attacker;
+    }
+
+    return -1;
 }
