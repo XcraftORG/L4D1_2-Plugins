@@ -13,7 +13,6 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdktools_functions>
-#include <colors>
 #define PLUGIN_VERSION "1.6"
 
 
@@ -35,6 +34,7 @@ new bool:afkKickEnabled;
 new bool:afkSpecOnConnect;
 new bool:afkShowTeamPanel;
 
+
 // work variables
 new bool:afkManager_Active = false;
 new afkPlayerTimeLeftWarn[MAXPLAYERS + 1];
@@ -44,9 +44,6 @@ new Float:afkPlayerLastPos[MAXPLAYERS + 1][3];
 new Float:afkPlayerLastEyes[MAXPLAYERS + 1][3];
 new bool:LeavedSafeRoom;
 new bool:PlayerJustConnected[MAXPLAYERS + 1];
-native IsInReady();
-native IsInPause();
-native Is_Ready_Plugin_On();
 
 public Plugin:myinfo = 
 {
@@ -59,8 +56,8 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	LoadTranslations("Roto2-AZ_mod.phrases");
 	// We register the spectate command
+	//RegConsoleCmd("spectate", cmd_spectate);
 	RegConsoleCmd("say", Command_Say);
 	RegConsoleCmd("say_team", Command_Say);
 	
@@ -109,7 +106,7 @@ public OnPluginStart()
 	h_AfkWarnKickTime = CreateConVar("l4d_specafk_warnkicktime", "60", "Warn time before kick (while already on spec)", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkKickTime = CreateConVar("l4d_specafk_kicktime", "30", "time before kick (while already on spec after warn)", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkCheckInterval = CreateConVar("l4d_specafk_checkinteral", "1", "Check/warn interval", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "0", "If kick enabled on afk while on spec", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "1", "If kick enabled on afk while on spec", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkSpecOnConnect = CreateConVar("l4d_specafk_speconconnect", "0", "If player will be forced to spectate on connect", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkShowTeamPanel = CreateConVar("l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	
@@ -131,6 +128,8 @@ public OnPluginStart()
 	
 	// We read the cvars
 	ReadCvars();
+	
+	AutoExecConfig(true, "L4DVSAutoSpectateOnAFK");
 }
 
 public ReadCvars()
@@ -160,12 +159,10 @@ public OnMapStart()
 	// We read all the cvars
 	ReadCvars();
 }
-
 public OnMapEnd()
 {
 	afkManager_Stop();
 }
-
 public OnClientPutInServer(client)
 {
 	// If players already leaved safe room we mark the player as just connected ...
@@ -342,8 +339,6 @@ public Action:afkPlayerAction (Handle:event, const String:name[], bool:dontBroad
 
 public Action:afkChangedTeam (Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if(Is_Ready_Plugin_On()) return Plugin_Continue;
-
 	// we get the victim
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (victim > 0)
@@ -382,7 +377,7 @@ public Action:afkJoinHint (Handle:Timer, any:client)
 		if (GetClientTeam(client) == 1)
 		{
 			// We send him a hint text ...
-			PrintHintText(client, "%T","L4DVSAutoSpectateOnAFK1",client);
+			PrintHintText(client, "按 M 或是輸入 !sur/!inf 加入遊戲...");
 			
 			// and setup another timer to tell him later ....
 			CreateTimer(5.0, afkJoinHint, client);
@@ -448,10 +443,8 @@ afkManager_Start()
 public Action:afkCheckThread(Handle:timer)
 {
 	// if afkmanager is not active ...
-	if (!afkManager_Active || Is_Ready_Plugin_On())
+	if (!afkManager_Active)
 		return Plugin_Stop;
-	if(IsInReady() || IsInPause() )
-		return Plugin_Continue;
 		
 	new count = GetMaxClients();
 	decl i;
@@ -492,7 +485,7 @@ public Action:afkCheckThread(Handle:timer)
 									afkPlayerTimeLeftAction[i] = afkSpecTime;
 									
 									// We warn the player ....
-									PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK2",i, afkPlayerTimeLeftAction[i]);
+									PrintHintText(i, "[AFK] 偵測閒置! 你將於 %i 秒後強制旁觀.", afkPlayerTimeLeftAction[i]);
 								}
 							}
 							else // player warn timeout reached ...
@@ -514,11 +507,11 @@ public Action:afkCheckThread(Handle:timer)
 									}
 									else // if players haven't leaved safe room ... we warn this player that he will be forced to spectate as soon as a player leaves
 									{
-										PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK3",i);
+										PrintHintText(i, "[AFK] 偵測閒置! 一旦有人離開安全區域你將強制旁觀.");
 									}
 								}
 								else // we just warn him ...
-								PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK2",i, afkPlayerTimeLeftAction[i]);
+								PrintHintText(i, "[AFK] 偵測閒置! 你將於 %i 秒後強制旁觀.", afkPlayerTimeLeftAction[i]);
 								
 							}
 						} // player is not trapped
@@ -553,7 +546,7 @@ public Action:afkCheckThread(Handle:timer)
 						if (afkPlayerTimeLeftWarn[i] <= 0)
 						{
 							// We warn the player ....
-							PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK4",i, afkPlayerTimeLeftAction[i]);
+							PrintHintText(i, "[AFK] 偵測閒置! 你將於 %i 秒後踢出伺服器.", afkPlayerTimeLeftAction[i]);
 						}
 					}
 					else // player warn timeout reached ...
@@ -565,18 +558,18 @@ public Action:afkCheckThread(Handle:timer)
 						if (afkPlayerTimeLeftAction[i] <=  0)
 						{
 							// If players haven't leaved the safe room ..
-							if (!LeavedSafeRoom)
+							if (LeavedSafeRoom)
 							{
-								// we force the player to spectate
+								// we kick the player
 								afkKickClient(i);
 							}
 							else // We warn him that he will be kicked ...
 							{
-								PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK5",i);
+								PrintHintText(i, "[AFK] 偵測閒置! 一旦有人離開安全區域你將踢出伺服器.");
 							}
 						}
 						else // we just warn him ...
-						PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK4",i, afkPlayerTimeLeftAction[i]);
+						PrintHintText(i, "[AFK] 偵測閒置! 你將於 %i 秒後踢出伺服器.", afkPlayerTimeLeftAction[i]);
 						
 					}			
 				} // player is not admin
@@ -624,7 +617,7 @@ afkForceSpectate (client, bool:advertise, bool:self)
 	}
 	
 	// We send him a hint text ...
-	PrintHintText(client, "%T","L4DVSAutoSpectateOnAFK1",client);
+	PrintHintText(client, "按 M 或是輸入 !sur/!inf 加入遊戲...");
 	
 	// We send him a hint message 5 seconds later, in case he hasn't joined any team
 	CreateTimer(5.0, afkJoinHint, client);
@@ -635,11 +628,13 @@ afkForceSpectate (client, bool:advertise, bool:self)
 	{
 		new String:PlayerName[200];
 		GetClientName(client, PlayerName, sizeof(PlayerName));
+		//PrintToChatAll("\x01\x04[TS] \x03%s \x01has been switched to \x03Spectators", PlayerName);
 	}
 	else if (self) 	// If player switched itself ...
 	{
 		new String:PlayerName[200];
 		GetClientName(client, PlayerName, sizeof(PlayerName));
+		//PrintToChatAll("\x01\x04[TS] \x03%s \x01switched himself to \x03Spectators", PlayerName);
 	}
 	
 }
@@ -674,7 +669,7 @@ afkKickClient (client)
 	new String:PlayerName[200];
 	GetClientName(client, PlayerName, sizeof(PlayerName));
 	
-	CPrintToChatAll("{default}[{olive}TS{default}] %t","L4DVSAutoSpectateOnAFK6", PlayerName);
+	PrintToChatAll("\x01\x04[TS] \x03%s \x01閒置太久被踢出伺服器.", PlayerName);
 }
 
 
