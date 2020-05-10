@@ -13,6 +13,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdktools_functions>
+#include <colors>
 #define PLUGIN_VERSION "1.6"
 
 
@@ -34,7 +35,6 @@ new bool:afkKickEnabled;
 new bool:afkSpecOnConnect;
 new bool:afkShowTeamPanel;
 
-
 // work variables
 new bool:afkManager_Active = false;
 new afkPlayerTimeLeftWarn[MAXPLAYERS + 1];
@@ -44,6 +44,9 @@ new Float:afkPlayerLastPos[MAXPLAYERS + 1][3];
 new Float:afkPlayerLastEyes[MAXPLAYERS + 1][3];
 new bool:LeavedSafeRoom;
 new bool:PlayerJustConnected[MAXPLAYERS + 1];
+native IsInReady();
+native IsInPause();
+native Is_Ready_Plugin_On();
 
 public Plugin:myinfo = 
 {
@@ -56,8 +59,8 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
+	LoadTranslations("Roto2-AZ_mod.phrases");
 	// We register the spectate command
-	//RegConsoleCmd("spectate", cmd_spectate);
 	RegConsoleCmd("say", Command_Say);
 	RegConsoleCmd("say_team", Command_Say);
 	
@@ -157,10 +160,12 @@ public OnMapStart()
 	// We read all the cvars
 	ReadCvars();
 }
+
 public OnMapEnd()
 {
 	afkManager_Stop();
 }
+
 public OnClientPutInServer(client)
 {
 	// If players already leaved safe room we mark the player as just connected ...
@@ -337,6 +342,8 @@ public Action:afkPlayerAction (Handle:event, const String:name[], bool:dontBroad
 
 public Action:afkChangedTeam (Handle:event, const String:name[], bool:dontBroadcast)
 {
+	if(Is_Ready_Plugin_On()) return Plugin_Continue;
+
 	// we get the victim
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (victim > 0)
@@ -375,7 +382,7 @@ public Action:afkJoinHint (Handle:Timer, any:client)
 		if (GetClientTeam(client) == 1)
 		{
 			// We send him a hint text ...
-			PrintHintText(client, "Press M or type !sur/!inf and join the game...");
+			PrintHintText(client, "%T","L4DVSAutoSpectateOnAFK1",client);
 			
 			// and setup another timer to tell him later ....
 			CreateTimer(5.0, afkJoinHint, client);
@@ -441,8 +448,10 @@ afkManager_Start()
 public Action:afkCheckThread(Handle:timer)
 {
 	// if afkmanager is not active ...
-	if (!afkManager_Active)
+	if (!afkManager_Active || Is_Ready_Plugin_On())
 		return Plugin_Stop;
+	if(IsInReady() || IsInPause() )
+		return Plugin_Continue;
 		
 	new count = GetMaxClients();
 	decl i;
@@ -483,7 +492,7 @@ public Action:afkCheckThread(Handle:timer)
 									afkPlayerTimeLeftAction[i] = afkSpecTime;
 									
 									// We warn the player ....
-									PrintHintText(i, "[AFK] You will be forced to spectate in %i seconds.", afkPlayerTimeLeftAction[i]);
+									PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK2",i, afkPlayerTimeLeftAction[i]);
 								}
 							}
 							else // player warn timeout reached ...
@@ -505,11 +514,11 @@ public Action:afkCheckThread(Handle:timer)
 									}
 									else // if players haven't leaved safe room ... we warn this player that he will be forced to spectate as soon as a player leaves
 									{
-										PrintHintText(i, "[AFK] You will be forced to spectate as soon as a player leaves the safe room.");
+										PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK3",i);
 									}
 								}
 								else // we just warn him ...
-								PrintHintText(i, "[AFK] You will be forced to spectate in %i seconds.", afkPlayerTimeLeftAction[i]);
+								PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK2",i, afkPlayerTimeLeftAction[i]);
 								
 							}
 						} // player is not trapped
@@ -544,7 +553,7 @@ public Action:afkCheckThread(Handle:timer)
 						if (afkPlayerTimeLeftWarn[i] <= 0)
 						{
 							// We warn the player ....
-							PrintHintText(i, "[AFK] You will be kicked in %i seconds.", afkPlayerTimeLeftAction[i]);
+							PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK4",i, afkPlayerTimeLeftAction[i]);
 						}
 					}
 					else // player warn timeout reached ...
@@ -563,11 +572,11 @@ public Action:afkCheckThread(Handle:timer)
 							}
 							else // We warn him that he will be kicked ...
 							{
-								PrintHintText(i, "[AFK] You will be kicked as soon as a player leaves the safe room.");
+								PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK5",i);
 							}
 						}
 						else // we just warn him ...
-						PrintHintText(i, "[AFK] You will be kicked in %i seconds.", afkPlayerTimeLeftAction[i]);
+						PrintHintText(i, "%T","L4DVSAutoSpectateOnAFK4",i, afkPlayerTimeLeftAction[i]);
 						
 					}			
 				} // player is not admin
@@ -615,7 +624,7 @@ afkForceSpectate (client, bool:advertise, bool:self)
 	}
 	
 	// We send him a hint text ...
-	PrintHintText(client, "Press M or type !sur/!inf and join the game...");
+	PrintHintText(client, "%T","L4DVSAutoSpectateOnAFK1",client);
 	
 	// We send him a hint message 5 seconds later, in case he hasn't joined any team
 	CreateTimer(5.0, afkJoinHint, client);
@@ -626,13 +635,11 @@ afkForceSpectate (client, bool:advertise, bool:self)
 	{
 		new String:PlayerName[200];
 		GetClientName(client, PlayerName, sizeof(PlayerName));
-		//PrintToChatAll("\x01\x04[TS] \x03%s \x01has been switched to \x03Spectators", PlayerName);
 	}
 	else if (self) 	// If player switched itself ...
 	{
 		new String:PlayerName[200];
 		GetClientName(client, PlayerName, sizeof(PlayerName));
-		//PrintToChatAll("\x01\x04[TS] \x03%s \x01switched himself to \x03Spectators", PlayerName);
 	}
 	
 }
@@ -667,7 +674,7 @@ afkKickClient (client)
 	new String:PlayerName[200];
 	GetClientName(client, PlayerName, sizeof(PlayerName));
 	
-	PrintToChatAll("\x01\x04[TS] \x03%s \x01has been kicked for being away for too long.", PlayerName);
+	CPrintToChatAll("{default}[{olive}TS{default}] %t","L4DVSAutoSpectateOnAFK6", PlayerName);
 }
 
 
