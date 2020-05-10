@@ -837,7 +837,7 @@ bool:HasIdlePlayer(bot)
 
 bool:CanClientChangeTeam(client,changeteam)
 {
-	if (L4D2_GetInfectedAttacker(client) != -1)
+	if (L4D2_GetInfectedAttacker(client) != -1 || clientBusy[client])
 	{
 		PrintHintText(client, "[TS] 特感抓住期間禁止換隊.");
 		return false;
