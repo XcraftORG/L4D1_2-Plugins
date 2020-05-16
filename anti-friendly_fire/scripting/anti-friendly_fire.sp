@@ -71,7 +71,7 @@ public Action Event_PlayerHurt(Event event, const char[] name, bool dontBroadcas
 	// Config, delete point_hurt
 	DispatchKeyValue(entPointHurt, "classname", "point_hurt");
 	DispatchKeyValue(attacker, "targetname", "null");
-	RemoveEdict(entPointHurt);
+	AcceptEntityInput(entPointHurt, "Kill");
 	
 	return Plugin_Handled;
 }

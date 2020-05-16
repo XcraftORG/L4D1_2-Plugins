@@ -588,7 +588,7 @@ stock StripWeapons(client) // strip all items from client
 		if((itemIdx = GetPlayerWeaponSlot(client, x)) != -1)
 		{  
 			RemovePlayerItem(client, itemIdx);
-			RemoveEdict(itemIdx);
+			AcceptEntityInput(itemIdx, "Kill");
 		}
 	}
 }
@@ -615,7 +615,7 @@ stock GiveMedkit(client)
 		if(!StrEqual(sClass, "weapon_first_aid_kit", false))
 		{
 			RemovePlayerItem(client, ent);
-			RemoveEdict(ent);
+			AcceptEntityInput(ent, "Kill");
 			BypassAndExecuteCommand(client, "give", "first_aid_kit");
 		}
 	}

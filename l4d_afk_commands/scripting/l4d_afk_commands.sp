@@ -61,6 +61,7 @@ new bool:EnforceTeamSwitch;
 static const ARRAY_TEAM = 1;
 static const ARRAY_COUNT = 2;
 #define L4D_TEAM_NAME(%1) (%1 == 2 ? "Survivors" : (%1 == 3 ? "Infected" : (%1 == 1 ? "Spectators" : "Unknown")))
+static bool L4D2Version;
 
 public Plugin:myinfo =
 {
@@ -75,7 +76,11 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	// Checks to see if the game is a L4D game. If it is, check if its the sequel. L4DVersion is L4D if false, L4D2 if true.
 	EngineVersion test = GetEngineVersion();
-	if( test != Engine_Left4Dead && test != Engine_Left4Dead2 )
+	if( test == Engine_Left4Dead)
+		L4D2Version = false;
+	else if (test == Engine_Left4Dead2 )
+		L4D2Version = true;
+	else
 	{
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
@@ -1001,41 +1006,43 @@ bool:LeftStartArea()
 
 stock L4D2_GetInfectedAttacker(client)
 {
-    new attacker;
+	new attacker;
 
-    /* Charger */
-    attacker = GetEntPropEnt(client, Prop_Send, "m_pummelAttacker");
-    if (attacker > 0)
-    {
-        return attacker;
-    }
+	if(L4D2Version)
+	{
+		/* Charger */
+		attacker = GetEntPropEnt(client, Prop_Send, "m_pummelAttacker");
+		if (attacker > 0)
+		{
+			return attacker;
+		}
 
-    attacker = GetEntPropEnt(client, Prop_Send, "m_carryAttacker");
-    if (attacker > 0)
-    {
-        return attacker;
-    }
+		attacker = GetEntPropEnt(client, Prop_Send, "m_carryAttacker");
+		if (attacker > 0)
+		{
+			return attacker;
+		}
+		/* Jockey */
+		attacker = GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker");
+		if (attacker > 0)
+		{
+			return attacker;
+		}
+	}
 
-    /* Hunter */
-    attacker = GetEntPropEnt(client, Prop_Send, "m_pounceAttacker");
-    if (attacker > 0)
-    {
-        return attacker;
-    }
+	/* Hunter */
+	attacker = GetEntPropEnt(client, Prop_Send, "m_pounceAttacker");
+	if (attacker > 0)
+	{
+		return attacker;
+	}
 
-    /* Smoker */
-    attacker = GetEntPropEnt(client, Prop_Send, "m_tongueOwner");
-    if (attacker > 0)
-    {
-        return attacker;
-    }
+	/* Smoker */
+	attacker = GetEntPropEnt(client, Prop_Send, "m_tongueOwner");
+	if (attacker > 0)
+	{
+		return attacker;
+	}
 
-    /* Jockey */
-    attacker = GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker");
-    if (attacker > 0)
-    {
-        return attacker;
-    }
-
-    return -1;
+	return -1;
 }
