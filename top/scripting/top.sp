@@ -8,6 +8,7 @@ new Handle:hCvarAnnounce;
 new Handle:g_hCvarMPGameMode;
 new Handle:g_hCvarModesTog;
 new Handle:g_hCvarSurvivorRequired;
+new Handle:g_hCvarAIHunter;
 new bool:g_bCvarAllow;
 new Handle:g_hCvarSurvivorLimit;
 new bool:g_bRoundEndAnnounce;
@@ -37,11 +38,12 @@ public Plugin:myinfo =
 public OnPluginStart()
 {
 	hEnablePlugin = CreateConVar("top_skeet_enable", "1", "Enable this plugin?", FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	OneShotSkeet = CreateConVar("skeet_announce_oneshot", "1", "Only count 'One Shot' skeet?", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	OneShotSkeet = CreateConVar("skeet_announce_oneshot", "1", "Only count 'One Shot' skeet?[1: Yes, 0: No]", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	hCvarAnnounce = CreateConVar("top_skeetannounce", "0", "Announce skeet/shots in chatbox when someone skeets.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	CvarAnnounce = GetConVarInt(hCvarAnnounce);
-	g_hCvarModesTog =	CreateConVar("top_skeet_modes_tog",		"4",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus. Add numbers together.", FCVAR_SPONLY|FCVAR_NOTIFY );
-	g_hCvarSurvivorRequired =	CreateConVar("top_skeet_survivors_required",		"4",			"Numbers of Survivors required at least to enable this plugin", FCVAR_SPONLY|FCVAR_NOTIFY );
+	g_hCvarModesTog =	CreateConVar("top_skeet_modes_tog",		"4",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus. Add numbers together.", FCVAR_SPONLY|FCVAR_NOTIFY, true, 0.0, true, 7.0);
+	g_hCvarSurvivorRequired =	CreateConVar("top_skeet_survivors_required",		"4",			"Numbers of Survivors required at least to enable this plugin", FCVAR_SPONLY|FCVAR_NOTIFY , true, 1.0, true, 32.0);
+	g_hCvarAIHunter =	CreateConVar("top_skeet_ai_hunter_enable",		"0",			"Count AI Hunter also?[1: Yes, 0: No]", FCVAR_SPONLY|FCVAR_NOTIFY , true, 0.0, true, 1.0);
 
 	HookConVarChange(hCvarAnnounce, ConVarChange_hCvarAnnounce);
 	
@@ -275,7 +277,7 @@ public Action:Event_PlayerDeath(Handle:event, String:name[], bool:dontBroadcast)
 			}
 			else
 			{
-				if (!IsFakeClient(victim))
+				if (!IsFakeClient(victim) || (IsFakeClient(victim) && GetConVarBool(g_hCvarAIHunter)) )
 				{
 					if (!IsFakeClient(attacker))
 					{
@@ -366,7 +368,7 @@ public Action:Event_PlayerShoved(Handle:event, String:name[], bool:dontBroadcast
 	new zombieclass = GetEntProp(victim, PropType:0, "m_zombieClass", 4);
 	if (zombieclass == 3 && g_bIsPouncing[victim])
 	{
-		if (IsFakeClient(victim))
+		if (IsFakeClient(victim) && !GetConVarBool(g_hCvarAIHunter) )
 		{
 			return Plugin_Continue;
 		}
@@ -387,7 +389,7 @@ public Action:Timer_DeadstopCheck(Handle:timer, Handle:pack)
 	if (!g_bHasLandedPounce[attacker])
 	{
 		new victim = ReadPackCell(pack);
-		if (!IsFakeClient(victim))
+		if (!IsFakeClient(victim) || (IsFakeClient(victim) && GetConVarBool(g_hCvarAIHunter)) )
 		{
 			if (IsClientInGame(victim) && IsClientInGame(attacker))
 			{
@@ -845,7 +847,7 @@ PrintSkeetsToClient(client)
 	{
 		PrintToChat(client, "\x04You \x03only \x011 skeet.");
 	}
-	if (skeet < 1)
+	else if (skeet < 1)
 	{
 		PrintToChat(client, "\x03You \x01don't have skeets.");
 	}
