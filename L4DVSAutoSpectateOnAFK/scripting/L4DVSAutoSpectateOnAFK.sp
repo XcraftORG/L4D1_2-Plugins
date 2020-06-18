@@ -95,20 +95,19 @@ public OnPluginStart()
 	// For roundstart and roundend..
 	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_Pre);
-	HookEvent("player_left_start_area", PlayerLeftStart);
 	HookEvent("finale_vehicle_leaving", Event_RoundEnd, EventHookMode_Pre);
 	HookEvent("mission_lost", Event_RoundEnd);
 	HookEvent("map_transition", Event_RoundEnd, EventHookMode_Pre);
 
 	// Afk manager time limits
-	h_AfkWarnSpecTime = CreateConVar("l4d_specafk_warnspectime", "20", "Warn time before spec", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkSpecTime = CreateConVar("l4d_specafk_spectime", "15", "time before spec (after warn)", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkWarnKickTime = CreateConVar("l4d_specafk_warnkicktime", "60", "Warn time before kick (while already on spec)", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkKickTime = CreateConVar("l4d_specafk_kicktime", "30", "time before kick (while already on spec after warn)", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkCheckInterval = CreateConVar("l4d_specafk_checkinteral", "1", "Check/warn interval", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "1", "If kick enabled on afk while on spec", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkSpecOnConnect = CreateConVar("l4d_specafk_speconconnect", "0", "If player will be forced to spectate on connect", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkShowTeamPanel = CreateConVar("l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkWarnSpecTime = CreateConVar("l4d_specafk_warnspectime", "20", "Warn time before spec", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkSpecTime = CreateConVar("l4d_specafk_spectime", "15", "time before spec (after warn)", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkWarnKickTime = CreateConVar("l4d_specafk_warnkicktime", "60", "Warn time before kick (while already on spec)", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkKickTime = CreateConVar("l4d_specafk_kicktime", "30", "time before kick (while already on spec after warn)", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkCheckInterval = CreateConVar("l4d_specafk_checkinteral", "1", "Check/warn interval", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "1", "If kick enabled on afk while on spec", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkSpecOnConnect = CreateConVar("l4d_specafk_speconconnect", "0", "If player will be forced to spectate on connect", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkShowTeamPanel = CreateConVar("l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	
 	// Hook cvars changes ...
 	HookConVarChange(h_AfkWarnSpecTime, ConVarChanged);
@@ -121,7 +120,7 @@ public OnPluginStart()
 	HookConVarChange(h_AfkShowTeamPanel, ConVarChanged);
 	
 	// We register the version cvar
-	CreateConVar("l4d_specafk_version", PLUGIN_VERSION, "Version of L4D VS Auto spectate on AFK", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	CreateConVar("l4d_specafk_version", PLUGIN_VERSION, "Version of L4D VS Auto spectate on AFK", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
 	
 	// We tweak some settings ..
 	SetConVarInt(FindConVar("vs_max_team_switches"), 9999); // so that players can switch multiple times
@@ -131,7 +130,8 @@ public OnPluginStart()
 	
 	AutoExecConfig(true, "L4DVSAutoSpectateOnAFK");
 }
-
+
+
 public ReadCvars()
 {
 	// first we read all the variables ...
@@ -227,6 +227,7 @@ public Action:Event_RoundStart (Handle:event, const String:name[], bool:dontBroa
 {
 	// reset some variables
 	LeavedSafeRoom = false;
+	CreateTimer(1.0, PlayerLeftStart, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 	
 	// We start the AFK manager
 	if(!afkManager_Active)
@@ -237,12 +238,6 @@ public Action:Event_RoundStart (Handle:event, const String:name[], bool:dontBroa
 	return Plugin_Continue;
 }
 
-
-public Action:PlayerLeftStart(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	LeavedSafeRoom = true;
-	return Plugin_Continue;
-}
 
 public Action:Event_RoundEnd (Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -680,6 +675,44 @@ afkManager_Stop()
 	
 	// mark as not active
 	afkManager_Active = false;
+}
+
+public Action PlayerLeftStart(Handle Timer)
+{
+	if (LeftStartArea())
+	{
+		LeavedSafeRoom = true;
+		return Plugin_Stop;
+	}
+	return Plugin_Continue;
+}
+
+bool LeftStartArea()
+{
+	int ent = -1, maxents = GetMaxEntities();
+	for (int i = MaxClients+1; i <= maxents; i++)
+	{
+		if (IsValidEntity(i))
+		{
+			char netclass[64];
+			GetEntityNetClass(i, netclass, sizeof(netclass));
+			
+			if (StrEqual(netclass, "CTerrorPlayerResource"))
+			{
+				ent = i;
+				break;
+			}
+		}
+	}
+	
+	if (ent > -1)
+	{
+		if (GetEntProp(ent, Prop_Send, "m_hasAnySurvivorLeftSafeArea"))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 /////////////////
