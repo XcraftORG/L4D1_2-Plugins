@@ -13,7 +13,7 @@
 #include <sourcemod>
 #include <sdktools>
 
-#define PLUGIN_VERSION 				"1.0"
+#define PLUGIN_VERSION 				"1.5"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -25,10 +25,8 @@
 #define	DAMAGE_YES					2
 
 new Handle:hMaxSurvivors
-new Handle:hMaxInfected
 new Handle:timer_SpawnTick = INVALID_HANDLE
 new Handle:timer_SpecCheck = INVALID_HANDLE
-new Handle:hKickIdlers
 new bool:gbVehicleLeaving
 new bool:gbPlayedAsSurvivorBefore[MAXPLAYERS+1]
 new bool:gbFirstItemPickedUp
@@ -41,7 +39,7 @@ public Plugin:myinfo =
 {
 	name 			= "[L4D(2)] MultiSlots",
 	author 			= "SwiftReal, MI 5",
-	description 	= "Allows additional survivor/infected players in coop, versus, and survival",
+	description 	= "Allows additional survivor players in coop, versus, and survival",
 	version 		= PLUGIN_VERSION,
 	url 			= "N/A"
 }
@@ -68,9 +66,7 @@ public OnPluginStart()
 	RegConsoleCmd("sm_join", JoinTeam, "Attempt to join Survivors");
 	
 	// Register cvars
-	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "8", "How many survivors allowed?", CVAR_FLAGS, true, 4.0, true, 32.0);
-	hMaxInfected	= CreateConVar("l4d_multislots_max_infected", "8", "How many infected allowed?", CVAR_FLAGS, true, 4.0, true, 32.0);
-	hKickIdlers 	= CreateConVar("l4d_multislots_kickafk", "2", "Kick idle players? (0 = no  1 = player 5 min, admins kickimmune  2 = player 5 min, admins 10 min)", CVAR_FLAGS, true, 0.0, true, 2.0);
+	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "8", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)", CVAR_FLAGS, true, 4.0, true, 32.0);
 	
 	// Hook events
 	HookEvent("item_pickup", evtRoundStartAndItemPickup);
@@ -346,33 +342,6 @@ public Action:Timer_SpecCheck(Handle:timer)
 					GetClientName(i, PlayerName, sizeof(PlayerName))		;
 					PrintToChat(i, "\x01[\x04MultiSlots\x01] %s, 聊天視窗輸入 \x03!join\x01 來加入倖存者隊伍", PlayerName);
 				}
-				switch(GetConVarInt(hKickIdlers))
-				{
-					case 0: {}
-					case 1:
-					{
-						if(GetUserFlagBits(i) == 0)
-						{
-							giIdleTicks[i]++;
-							if(giIdleTicks[i] == 20)
-								KickClient(i, "Player idle longer than 5 min.");
-						}
-					}
-					case 2:
-					{
-						giIdleTicks[i]++;
-						if(GetUserFlagBits(i) == 0)
-						{
-							if(giIdleTicks[i] == 20)
-								KickClient(i, "Player idle longer than 5 min.");
-						}
-						else
-						{
-							if(giIdleTicks[i] == 40)
-								KickClient(i, "Admin idle longer than 10 min.");
-						}
-					}
-				}
 			}
 		}
 	}	
@@ -410,7 +379,7 @@ public Action:Timer_AutoJoinTeam(Handle:timer, any:client)
 
 public Action:Timer_KickNoNeededBot(Handle:timer, any:bot)
 {
-	if((TotalSurvivors() <= 4))
+	if((TotalSurvivors() <= GetConVarInt(hMaxSurvivors)))
 		return Plugin_Handled;
 	
 	if(IsClientConnected(bot) && IsClientInGame(bot))
@@ -450,11 +419,6 @@ stock TweakSettings()
 	SetConVarBounds(hMaxSurvivorsLimitCvar,  ConVarBound_Lower, true, 4.0);
 	SetConVarBounds(hMaxSurvivorsLimitCvar, ConVarBound_Upper, true, 32.0);
 	SetConVarInt(hMaxSurvivorsLimitCvar, GetConVarInt(hMaxSurvivors));
-	
-	new Handle:hMaxInfectedLimitCvar = FindConVar("z_max_player_zombies");
-	SetConVarBounds(hMaxInfectedLimitCvar,  ConVarBound_Lower, true, 4.0);
-	SetConVarBounds(hMaxInfectedLimitCvar, ConVarBound_Upper, true, 32.0);
-	SetConVarInt(hMaxInfectedLimitCvar, GetConVarInt(hMaxInfected));
 	
 	SetConVarInt(FindConVar("z_spawn_flow_limit"), 50000) ;// allow spawning bots at any time
 }

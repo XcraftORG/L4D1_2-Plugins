@@ -1,9 +1,11 @@
-Allows additional survivor/infected players in coop, versus, and survival
+Allows additional survivor players in coop, versus, and survival
 
 -Require-
-You still need to use l4dtoolz to unlock survivor limit
+You still need to use l4dtoolz or left4downtown or l4dhooks to unlock survivor limit
 
 -Convars-
-"l4d_multislots_max_survivors", "8", "How many survivors allowed?"
-"l4d_multislots_max_infected", "8", "How many infected allowed?"
-"l4d_multislots_kickafk", "2", "Kick idle players? (0 = no  1 = player 5 min, admins kickimmune  2 = player 5 min, admins 10 min)"
+"l4d_multislots_max_survivors", "8", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)"
+
+-Command-
+(spec only) "sm_join", "Attempt to join Survivors"
+(adm only) "sm_addbot", "Attempt to add and teleport a survivor bot"
