@@ -1,3 +1,6 @@
+/*version: 2.6*/
+//Improve code
+
 /*version: 2.5*/
 //Improve code
 
@@ -33,7 +36,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "2.5"
+#define PLUGIN_VERSION    "2.6"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -62,6 +65,7 @@ static const ARRAY_TEAM = 1;
 static const ARRAY_COUNT = 2;
 #define L4D_TEAM_NAME(%1) (%1 == 2 ? "Survivors" : (%1 == 3 ? "Infected" : (%1 == 1 ? "Spectators" : "Unknown")))
 static bool L4D2Version;
+static Handle:hSetHumanSpec;
 
 public Plugin:myinfo =
 {
@@ -147,6 +151,25 @@ public OnPluginStart()
 	arrayclientswitchteam = CreateArray(ByteCountToCells(STEAMID_SIZE));
 	
 	AutoExecConfig(true, "l4d_afk_commands");
+
+	new Handle:hGameConf;	
+	hGameConf = LoadGameConfigFile("l4d_afk_commands");
+	if(hGameConf == null)
+	{
+		SetFailState("Gamedata l4d_afk_commands.txt not found");
+		return;
+	}
+
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "SetHumanSpec");
+	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+	hSetHumanSpec = EndPrepSDKCall();
+	if (hSetHumanSpec == null)
+	{
+		SetFailState("Cant initialize SetHumanSpec SDKCall");
+		return;
+	}
+	CloseHandle(hGameConf);
 }
 
 public OnMapStart()
@@ -759,18 +782,6 @@ public Action:TakeOverBot(Handle:timer, any:client)
 	
 	if(IsPlayerAlive(bot))
 	{
-		static Handle:hSetHumanSpec;
-		if (hSetHumanSpec == INVALID_HANDLE)
-		{
-			new Handle:hGameConf	;	
-			hGameConf = LoadGameConfigFile("l4d_afk_commands");
-			
-			StartPrepSDKCall(SDKCall_Player);
-			PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "SetHumanSpec");
-			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
-			hSetHumanSpec = EndPrepSDKCall();
-		}
-		
 		SDKCall(hSetHumanSpec, bot, client);
 		SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
 	}

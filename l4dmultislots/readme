@@ -8,4 +8,4 @@ You still need to use l4dtoolz or left4downtown or l4dhooks to unlock survivor l
 
 -Command-
 (spec only) "sm_join", "Attempt to join Survivors"
-(adm only) "sm_addbot", "Attempt to add and teleport a survivor bot"
+(adm only) "sm_muladdbot", "Attempt to add and teleport a survivor bot"

@@ -34,6 +34,7 @@ new bool:gbPlayerPickedUpFirstItem[MAXPLAYERS+1]
 //new Float:vecLocationStart[3]
 new String:gMapName[128]
 new giIdleTicks[MAXPLAYERS+1]
+static Handle:hSetHumanSpec;
 
 public Plugin:myinfo = 
 {
@@ -62,7 +63,7 @@ public OnPluginStart()
 	SetConVarString(FindConVar("l4d_multislots_version"), PLUGIN_VERSION);
 	
 	// Register commands
-	RegAdminCmd("sm_addbot", AddBot, ADMFLAG_KICK, "Attempt to add and teleport a survivor bot");
+	RegAdminCmd("sm_muladdbot", AddBot, ADMFLAG_KICK, "Attempt to add and teleport a survivor bot");
 	RegConsoleCmd("sm_join", JoinTeam, "Attempt to join Survivors");
 	
 	// Register cvars
@@ -78,10 +79,34 @@ public OnPluginStart()
 	HookEvent("bot_player_replace", evtPlayerReplacedBot);
 	HookEvent("player_bot_replace", evtBotReplacedPlayer);
 	HookEvent("player_team", evtPlayerTeam);
+	HookEvent("player_spawn", evtPlayerSpawn);
+	HookEvent("player_death", evtPlayerDeath);
 	
 	// Create or execute plugin configuration file
 	AutoExecConfig(true, "l4dmultislots");
+
+	// ======================================
+	// Prep SDK Calls
+	// ======================================
+
+	new Handle:hGameConf	;	
+	hGameConf = LoadGameConfigFile("l4dmultislots");
+	if(hGameConf == null)
+	{
+		SetFailState("Gamedata l4dmultislots.txt not found");
+		return;
+	}
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "SetHumanSpec");
+	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+	hSetHumanSpec = EndPrepSDKCall();
 	
+	if (hSetHumanSpec == null)
+	{
+		SetFailState("Cant initialize SetHumanSpec SDKCall");
+		return;
+	}
+	CloseHandle(hGameConf);
 }
 
 public OnMapStart()
@@ -154,14 +179,14 @@ public Action:JoinTeam(client, args)
 	}
 	else
 	{			
-		if(TotalFreeBots() == 0)
+		if(TotalFreeAliveBots() == 0)
 		{
 			SpawnFakeClientAndTeleport();
 			
 			CreateTimer(1.0, Timer_AutoJoinTeam, client, TIMER_REPEAT)	;			
 		}
 		else
-			TakeOverBot(client, false);
+			TakeOverBot(client);
 	}
 	return Plugin_Handled;
 }
@@ -305,9 +330,24 @@ public evtMissionLost(Handle:event, const String:name[], bool:dontBroadcast)
 public evtBotReplacedPlayer(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new fakebot = GetClientOfUserId(GetEventInt(event, "bot"));
-	if(GetClientTeam(fakebot) == TEAM_SURVIVORS)
+	if(fakebot && GetClientTeam(fakebot) == TEAM_SURVIVORS && IsFakeClient(fakebot))
 		CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, fakebot);
 }
+
+public evtPlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
+		CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, client);	
+}
+
+public evtPlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
+		CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, client);	
+}
+
 ////////////////////////////////////
 // timers
 ////////////////////////////////////
@@ -382,9 +422,9 @@ public Action:Timer_KickNoNeededBot(Handle:timer, any:bot)
 	if((TotalSurvivors() <= GetConVarInt(hMaxSurvivors)))
 		return Plugin_Handled;
 	
-	if(IsClientConnected(bot) && IsClientInGame(bot))
+	if(IsClientConnected(bot) && IsClientInGame(bot) && IsFakeClient(bot))
 	{
-		if(GetClientTeam(bot) == TEAM_INFECTED)
+		if(GetClientTeam(bot) != TEAM_SURVIVORS)
 			return Plugin_Handled;
 		
 		decl String:BotName[100]
@@ -462,58 +502,26 @@ break;
 }
 }*/
 
-stock TakeOverBot(client, bool:completely)
+stock TakeOverBot(client)
 {
 	if (!IsClientInGame(client)) return;
 	if (GetClientTeam(client) == TEAM_SURVIVORS) return;
 	if (IsFakeClient(client)) return;
 	
-	new fakebot = FindBotToTakeOver()	;
+	new fakebot = FindBotToTakeOver(true)	;
 	if (fakebot==0)
 	{
 		PrintHintText(client, "沒有倖存者Bot能取代.");
 		return;
 	}
-	
-	static Handle:hSetHumanSpec;
-	if (hSetHumanSpec == INVALID_HANDLE)
-	{
-		new Handle:hGameConf	;	
-		hGameConf = LoadGameConfigFile("l4dmultislots");
-		
-		StartPrepSDKCall(SDKCall_Player);
-		PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "SetHumanSpec");
-		PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
-		hSetHumanSpec = EndPrepSDKCall();
-	}
-	
-	static Handle:hTakeOverBot;
-	if (hTakeOverBot == INVALID_HANDLE)
-	{
-		new Handle:hGameConf	;	
-		hGameConf = LoadGameConfigFile("l4dmultislots");
-		
-		StartPrepSDKCall(SDKCall_Player);
-		PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "TakeOverBot");
-		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
-		hTakeOverBot = EndPrepSDKCall();
-	}
-	
-	if(completely)
-	{
-		SDKCall(hSetHumanSpec, fakebot, client);
-		SDKCall(hTakeOverBot, client, true);
-	}
-	else
-	{
-		SDKCall(hSetHumanSpec, fakebot, client);
-		SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
-	}
+
+	SDKCall(hSetHumanSpec, fakebot, client);
+	SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
 	
 	return;
 }
 
-stock FindBotToTakeOver()
+stock FindBotToTakeOver(bool alive)
 {
 	for (new i = 1; i <= MaxClients; i++)
 	{
@@ -521,13 +529,14 @@ stock FindBotToTakeOver()
 		{
 			if(IsClientInGame(i))
 			{
-				if (IsFakeClient(i) && GetClientTeam(i)==TEAM_SURVIVORS && IsAlive(i) && !HasIdlePlayer(i))
+				if (IsFakeClient(i) && GetClientTeam(i)==TEAM_SURVIVORS && !HasIdlePlayer(i) && IsPlayerAlive(i) == alive)
 					return i;
 			}
 		}
 	}
 	return 0;
 }
+
 
 stock SetEntityTempHealth(client, hp)
 {
@@ -625,14 +634,14 @@ stock HumanConnected()
 	return kk;
 }
 
-stock TotalFreeBots() // total bots (excl. IDLE players)
+stock TotalFreeAliveBots() // total bots (excl. IDLE players)
 {
 	new kk = 0;
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(i))
 		{
-			if(IsFakeClient(i) && GetClientTeam(i)==TEAM_SURVIVORS)
+			if(IsFakeClient(i) && GetClientTeam(i)==TEAM_SURVIVORS && IsPlayerAlive(i))
 			{
 				if(!HasIdlePlayer(i))
 					kk++;
