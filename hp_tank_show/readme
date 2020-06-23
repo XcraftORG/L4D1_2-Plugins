@@ -1,4 +1,4 @@
-isplay Tank HP status on his head
+Display Tank HP status on his head
 
 -Convars-
-None
+"l4d_hp_tank_show_precache",	"c1m3_mall",	"Prevent pre-caching models on these maps, separate by commas (no spaces). Enabling plugin on these maps will crash the server."

@@ -2,6 +2,8 @@
 #include <sdkhooks>
 #include <sdktools>
 
+#pragma semicolon 1
+#pragma newdecls required
 #define TEAM_INFECTED                        3
 #define SPRITE_MODEL3            "materials/vgui/healthbar_white.vmt"
 #define SPRITE_MODEL2            "materials/vgui/s_panel_healing_mini_prog.vmt"
@@ -12,7 +14,6 @@
 //RIP DIMINUIR?
 
 static bool   g_bL4D2Version;
-static bool   g_bLateLoad;
 
 static int TankSprite[MAXPLAYERS+1];
 static int TankHealth[MAXPLAYERS+1];
@@ -22,6 +23,8 @@ static float LastUseTime[MAXPLAYERS+1];
 
 static int AlgorithmType = 2;
 static bool EnableGlow = false;
+static ConVar hCvar_Precache;
+static bool g_bValidMap;
 
 // ====================================================================================================
 // Plugin Start
@@ -29,7 +32,7 @@ static bool EnableGlow = false;
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
     EngineVersion engine = GetEngineVersion();
-    if (engine != Engine_Left4Dead2 || engine != Engine_Left4Dead)
+    if (engine != Engine_Left4Dead2 && engine != Engine_Left4Dead)
     {
          strcopy(error, err_max, "This plugin only runs in the \"Left 4 Dead 2\" and \"Left 4 Dead 1\" game."); // Spitter class is only available in L4D2
          return APLRes_SilentFailure;
@@ -37,45 +40,67 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
     g_bL4D2Version = (engine == Engine_Left4Dead2);
 
-    g_bLateLoad = late;
-
     return APLRes_Success;
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
-    PrecacheModel(SPRITE_MODEL, true);
-    PrecacheModel(SPRITE_MODEL2, true);
-    PrecacheModel(SPRITE_MODEL3, true);
-    PrecacheModel(SPRITE_MODEL4, true);
-    PrecacheModel(SPRITE_DEATH, true);
+    hCvar_Precache 				= CreateConVar("l4d_hp_tank_show_precache",	"c1m3_mall",	"Prevent pre-caching models on these maps, separate by commas (no spaces). Enabling plugin on these maps will crash the server.", FCVAR_NOTIFY );
+
     HookEvent("tank_spawn", Event_TankSpawn);
     HookEvent("tank_killed", event_TankKilled);
     HookEvent("player_hurt", OnPlayerHurt);
     /* SI Boomer events */
     HookEvent("player_now_it", _HG_UpdateGlow_NowIT_Event);
     HookEvent("player_no_longer_it", _HG_UpdateGlow_NoLongerIt_Event);
+}
 
-    if (g_bLateLoad)
-    {
+public void OnMapStart()
+{
+	g_bValidMap = true;
+
+	char sCvar[256];
+	hCvar_Precache.GetString(sCvar, sizeof(sCvar));
+
+	if( sCvar[0] != '\0' )
+	{
+		char sMap[64];
+		GetCurrentMap(sMap, sizeof(sMap));
+
+		Format(sMap, sizeof(sMap), ",%s,", sMap);
+		Format(sCvar, sizeof(sCvar), ",%s,", sCvar);
+
+		if( StrContains(sCvar, sMap, false) != -1 )
+			g_bValidMap = false;
+	}
+
+	if( g_bValidMap )
+	{
+        PrecacheModel(SPRITE_MODEL, true);
+        PrecacheModel(SPRITE_MODEL2, true);
+        PrecacheModel(SPRITE_MODEL3, true);
+        PrecacheModel(SPRITE_MODEL4, true);
+        PrecacheModel(SPRITE_DEATH, true);
     }
 }
 
-public _HG_UpdateGlow_NowIT_Event(Handle:event, const String:name[], bool:dontBroadcast)
+public void _HG_UpdateGlow_NowIT_Event( Event event, const char[] sName, bool bDontBroadcast )
 {
-    new client = GetClientOfUserId(GetEventInt(event, "userid"));
-    if (client <= 0 || !IsClientInGame(client) || GetClientTeam(client) != TEAM_INFECTED) return;
+    int client = GetClientOfUserId(GetEventInt(event, "userid"));
+    if (!g_bValidMap || client <= 0 || !IsClientInGame(client) || GetClientTeam(client) != TEAM_INFECTED) return;
     L4D2_RemoveEntityGlow(client);
     TankNow[client] = true;
 }
 
-public _HG_UpdateGlow_NoLongerIt_Event(Handle:event, const String:name[], bool:dontBroadcast)
+public void _HG_UpdateGlow_NoLongerIt_Event( Event event, const char[] sName, bool bDontBroadcast )
 {
-    new client = GetClientOfUserId(GetEventInt(event, "userid"));
+    if(!g_bValidMap) return;
+
+    int client = GetClientOfUserId(GetEventInt(event, "userid"));
     TankNow[client] = false;
 
-    new nowHP = GetClientHealth(client);
-    new maxHP = TankHealth[client];
+    int nowHP = GetClientHealth(client);
+    int maxHP = TankHealth[client];
 
     if (TankHealth[client] == -1)
          return;
@@ -111,11 +136,11 @@ public _HG_UpdateGlow_NoLongerIt_Event(Handle:event, const String:name[], bool:d
     }
 }
 
-public Action:event_TankKilled(Handle:event, const String:name[], bool:dontBroadcast)
+public Action event_TankKilled( Event event, const char[] sName, bool bDontBroadcast )
 {
-    new client = GetClientOfUserId(GetEventInt(event, "userid"));
+    int client = GetClientOfUserId(GetEventInt(event, "userid"));
 
-    if (client <= 0 || client > MaxClients|| !IsClientInGame(client))
+    if (!g_bValidMap || client <= 0 || client > MaxClients|| !IsClientInGame(client))
         return;
 
     if (!TankIncapped[client])
@@ -170,19 +195,10 @@ void L4D2_RemoveEntityGlow(int entity)
 
  */
 
-public Action:OnPlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
+public Action OnPlayerHurt( Event event, const char[] sName, bool bDontBroadcast )
 {
-    // if (!GetConVarBool(hPluginEnable)) return Plugin_Continue;
-
-    // new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-    // if (!attacker
-      // || !IsClientConnected(attacker)
-      // || !IsClientInGame(attacker)
-      // || GetClientTeam(attacker) != 2){
-        // return Plugin_Continue;
-    // }
-    new client = GetClientOfUserId(GetEventInt(event, "userid"));
-    if (!client || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client) || GetClientTeam(client) != TEAM_INFECTED || TankHealth[client] == -1)
+    int client = GetClientOfUserId(GetEventInt(event, "userid"));
+    if (!g_bValidMap || !client || !IsClientConnected(client) || !IsClientInGame(client) || !IsPlayerAlive(client) || GetClientTeam(client) != TEAM_INFECTED || TankHealth[client] == -1)
         return Plugin_Continue;
 
     if (g_bL4D2Version)
@@ -196,8 +212,8 @@ public Action:OnPlayerHurt(Handle:event, const String:name[], bool:dontBroadcast
             return Plugin_Continue;
     }
 
-    new nowHP = GetEventInt(event, "health");
-    new maxHP = TankHealth[client];
+    int nowHP = GetEventInt(event, "health");
+    int maxHP = TankHealth[client];
 
     if (TankHealth[client] == -1)
          return Plugin_Continue;
@@ -229,7 +245,7 @@ public Action:OnPlayerHurt(Handle:event, const String:name[], bool:dontBroadcast
 
     float fCountdownHeat = float(nowHP) / maxHP;
 
-    decl String:sTemp[12];
+    char sTemp[12];
 
     bool bHalfHp = false;
     bHalfHp = fCountdownHeat <= 0.5 ? true : false;
@@ -293,9 +309,11 @@ int GetZombieClass(int client)
 
 int iSwitch = 0;
 
-public Action Event_TankSpawn(Handle:event, String:event_name[], bool:dontBroadcast)
+public void Event_TankSpawn( Event event, const char[] sName, bool bDontBroadcast )
 {
-    new client =    GetClientOfUserId(GetEventInt(event, "userid"));
+    if (!g_bValidMap) return;
+
+    int client =    GetClientOfUserId(GetEventInt(event, "userid"));
 
     if (IsValidClient(client))
     {
@@ -334,8 +352,8 @@ public Action Event_TankSpawn(Handle:event, String:event_name[], bool:dontBroadc
         DispatchKeyValue(env_sprite, "renderamt", "240");
         DispatchKeyValue(env_sprite, "disablereceiveshadows", "1");
         DispatchKeyValue(env_sprite, "spawnflags", "1");
-        DispatchKeyValueFloat(env_sprite, "fademindist", 600.0)
-        DispatchKeyValueFloat(env_sprite, "fademaxdist", 600.0)
+        DispatchKeyValueFloat(env_sprite, "fademindist", 600.0);
+        DispatchKeyValueFloat(env_sprite, "fademaxdist", 600.0);
 
         DispatchSpawn(env_sprite);
         DispatchKeyValue(env_sprite, "renderamt", "0");
@@ -354,7 +372,7 @@ public Action Event_TankSpawn(Handle:event, String:event_name[], bool:dontBroadc
     }
 }
 
-public Action:Timer_HealthModifierSet(Handle:timer, any:client)
+public Action Timer_HealthModifierSet(Handle timer, int client)
 {
     if (IsValidClient(client) && !IsPlayerGhost(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_INFECTED && GetClientHealth(client) > 0 && TankHealth[client] == -1)
     {
@@ -366,7 +384,7 @@ public Action:Timer_HealthModifierSet(Handle:timer, any:client)
 
 }
 
-public Action:Timer_TankSprite(Handle:timer, any:client)
+public Action Timer_TankSprite(Handle timer, int client)
 {
     int env_sprite = TankSprite[client];
 
@@ -376,7 +394,7 @@ public Action:Timer_TankSprite(Handle:timer, any:client)
     if (!IsClientInGame(client) || !IsPlayerAlive(client) || GetClientTeam(client) != 3)
 	{
 		if(IsValidEntRef(env_sprite))
-			RemoveEdict(env_sprite);
+			AcceptEntityInput(env_sprite, "Kill");
 		return Plugin_Stop;
 	}
 	
@@ -385,7 +403,7 @@ public Action:Timer_TankSprite(Handle:timer, any:client)
         if (GetZombieClass(client) != 8)
 		{
 			if(IsValidEntRef(env_sprite))
-				RemoveEdict(env_sprite);
+				AcceptEntityInput(env_sprite, "Kill");
 			return Plugin_Stop;
 		}
     }
@@ -394,7 +412,7 @@ public Action:Timer_TankSprite(Handle:timer, any:client)
         if (GetZombieClass(client) != 5)
 		{
 			if(IsValidEntRef(env_sprite))
-				RemoveEdict(env_sprite);
+				AcceptEntityInput(env_sprite, "Kill");
 			return Plugin_Stop;
 		}
     }
@@ -402,7 +420,7 @@ public Action:Timer_TankSprite(Handle:timer, any:client)
     //if (IsPlayerIncapped(client))
 	//{
 	//	if(IsValidEntRef(env_sprite))
-	//		RemoveEdict(env_sprite);
+	//		AcceptEntityInput(env_sprite, "Kill");
 	//	return Plugin_Stop;
 	//}
 
