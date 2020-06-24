@@ -11,7 +11,7 @@ You still need to use l4dtoolz or left4downtown or l4dhooks to unlock server slo
 // Maximum: "32.000000"
 l4d_multislots_max_survivors "4"
 
-// Spawn a dead survivor bot after a certain time after round starts [0: Disable]
+// Spawn a dead survivor bot after a certain time round starts [0: Disable]
 // -
 // Default: "100"
 // Minimum: "0.000000"
