@@ -47,7 +47,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
-#include <colors>
+#include <multicolors>
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
