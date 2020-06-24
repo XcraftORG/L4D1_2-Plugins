@@ -9,9 +9,39 @@ Adds commands to let the player spectate and join team. (!afk, !survivors, !infe
 //6.管理員指令新增 sm_swapto <player> <team> 強制指定玩家換隊伍
 
 -convars-
-"l4d2_changeteam_cooltime", "4.0", "Time in seconds a player can't change team again."
-"l4d2_deadplayer_changeteam", "0", "Can Dead Survivor Player change team? (0:No, 1:Yes)"
-"l4d_teamswitch_enabled", "0", "Can player use command to switch team during the game?"
+// If 1, admins are immune to all limit
+// -
+// Default: "1"
+// Minimum: "0.000000"
+// Maximum: "1.000000"
+l4d_afk_commands_adm_immue "1"
+
+// If 1, only admins can use command to switch team
+// -
+// Default: "0"
+// Minimum: "0.000000"
+// Maximum: "1.000000"
+l4d_afk_commands_adm_only "0"
+
+// Cold Down Time in seconds a player can't change team again.
+// -
+// Default: "4.0"
+// Minimum: "1.000000"
+l4d_afk_commands_changeteam_cooltime "4.0"
+
+// Can Dead Survivor Player change team? (0:No, 1:Yes)
+// -
+// Default: "0"
+// Minimum: "0.000000"
+// Maximum: "1.000000"
+l4d_afk_commands_deadplayer_changeteam_enable "0"
+
+// Can player use command to switch team during the game? (0:No, 1:Yes)
+// -
+// Default: "0"
+// Minimum: "0.000000"
+// Maximum: "1.000000"
+l4d_afk_commands_teamswitch_during_game_enabled "0"
 
 -commands-
 **Change team to Spectate

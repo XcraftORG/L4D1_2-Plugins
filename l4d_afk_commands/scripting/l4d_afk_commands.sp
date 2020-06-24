@@ -1,3 +1,8 @@
+/*version: 2.7*/
+//add two convar
+//"l4d_afk_commands_adm_only", "0", "If 1, only admins can use command to switch team"
+//"l4d_afk_commands_adm_immue",	 "1", "If 1, admins are immune to all limit"
+
 /*version: 2.6*/
 //Improve code
 
@@ -36,38 +41,47 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "2.6"
+#define PLUGIN_VERSION    "2.7"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 #include <colors>
+#pragma semicolon 1
+#pragma newdecls required //強制1.7以後的新語法
 
-static InCoolDownTime[MAXPLAYERS+1] = false;//是否還有換隊冷卻時間
-static Float:CoolTime;
-static Handle:cvarCoolTime					= INVALID_HANDLE;
-static bool:bClientJoinedTeam[MAXPLAYERS+1] = false; //在冷卻時間是否嘗試加入
-static Float:g_iSpectatePenaltyCounter[MAXPLAYERS+1] ;//各自的冷卻時間
-static bool:clientBusy[MAXPLAYERS+1];//是否被witch抓
-static WitchTarget[5000];//WitchTarget[妹子元素編號]=鎖定的玩家
-static clientteam[MAXPLAYERS+1];//玩家換隊成功之後的隊伍
-static Handle:cvarDeadChangeTeamEnable					= INVALID_HANDLE;
-static DeadChangeTeamEnable;
-new Handle:g_hGameMode;
-static String:CvarGameMode[20];
-static bool:LEFT_SAFE_ROOM;
-static Handle:arrayclientswitchteam;
-new Handle:cvarEnforceTeamSwitch = INVALID_HANDLE;
-new bool:EnforceTeamSwitch;
 #define STEAMID_SIZE 		32
-static const ARRAY_TEAM = 1;
-static const ARRAY_COUNT = 2;
 #define L4D_TEAM_NAME(%1) (%1 == 2 ? "Survivors" : (%1 == 3 ? "Infected" : (%1 == 1 ? "Spectators" : "Unknown")))
-static bool L4D2Version;
-static Handle:hSetHumanSpec;
+static const int ARRAY_TEAM = 1;
+static const int ARRAY_COUNT = 2;
+//convar
+ConVar cvarCoolTime					= null;
+ConVar cvarDeadChangeTeamEnable		= null;
+ConVar cvarEnforceTeamSwitch 		= null;
+ConVar cvarAdmOnly 					= null;
+ConVar cvarAdmImmue 				= null;
+ConVar g_hGameMode;
 
-public Plugin:myinfo =
+//value
+Handle arrayclientswitchteam;
+static Handle hSetHumanSpec;
+
+static bool InCoolDownTime[MAXPLAYERS+1] = false;//是否還有換隊冷卻時間
+static float CoolTime;
+static bool bClientJoinedTeam[MAXPLAYERS+1] = false; //在冷卻時間是否嘗試加入
+static float g_iSpectatePenaltyCounter[MAXPLAYERS+1] ;//各自的冷卻時間
+static bool clientBusy[MAXPLAYERS+1];//是否被witch抓
+static int WitchTarget[5000];//WitchTarget[妹子元素編號]=鎖定的玩家
+static int clientteam[MAXPLAYERS+1];//玩家換隊成功之後的隊伍
+static int DeadChangeTeamEnable;
+char CvarGameMode[20];
+static bool LEFT_SAFE_ROOM;
+bool EnforceTeamSwitch;
+static bool L4D2Version;
+bool bAdmOnly,bAdmImmue;
+
+public Plugin myinfo =
 {
 	name = PLUGIN_NAME,
 	author = "MasterMe,modify by Harry",
@@ -76,7 +90,7 @@ public Plugin:myinfo =
 	url = "http://forums.alliedmods.net/showthread.php?t=122476"
 };
 
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max) 
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) 
 {
 	// Checks to see if the game is a L4D game. If it is, check if its the sequel. L4DVersion is L4D if false, L4D2 if true.
 	EngineVersion test = GetEngineVersion();
@@ -92,7 +106,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	return APLRes_Success;
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 
 	LoadTranslations("common.phrases");
@@ -100,14 +114,14 @@ public OnPluginStart()
 	RegConsoleCmd("sm_s", TurnClientToSpectate);
 	RegConsoleCmd("sm_join", TurnClientToSurvivors);
 	RegConsoleCmd("sm_bot", TurnClientToSurvivors);
-	RegConsoleCmd("sm_jointeam", TurnClientToSurvivors)
+	RegConsoleCmd("sm_jointeam", TurnClientToSurvivors);
 	RegConsoleCmd("sm_away", TurnClientToSpectate);
 	RegConsoleCmd("sm_idle", TurnClientToSpectate);
 	RegConsoleCmd("sm_spectate", TurnClientToSpectate);
 	RegConsoleCmd("sm_spec", TurnClientToSpectate);
 	RegConsoleCmd("sm_spectators", TurnClientToSpectate);
 	RegConsoleCmd("sm_joinspectators", TurnClientToSpectate);
-	RegConsoleCmd("sm_jointeam1", TurnClientToSpectate)
+	RegConsoleCmd("sm_jointeam1", TurnClientToSpectate);
 	RegConsoleCmd("sm_survivors", TurnClientToSurvivors);
 	RegConsoleCmd("sm_survivor", TurnClientToSurvivors);
 	RegConsoleCmd("sm_sur", TurnClientToSurvivors);
@@ -123,36 +137,38 @@ public OnPluginStart()
 	
 	RegAdminCmd("sm_swapto", Command_SwapTo, ADMFLAG_BAN, "sm_swapto <player1> [player2] ... [playerN] <teamnum> - swap all listed players to <teamnum> (1,2, or 3)");
 	
-	cvarCoolTime = CreateConVar("l4d2_changeteam_cooltime", "4.0", "Time in seconds a player can't change team again.", FCVAR_NOTIFY);
-	cvarDeadChangeTeamEnable = CreateConVar("l4d2_deadplayer_changeteam", "0", "Can Dead Survivor Player change team? (0:No, 1:Yes)", FCVAR_NOTIFY);
-	cvarEnforceTeamSwitch = CreateConVar("l4d_teamswitch_enabled", "0", "Can player use command to switch team during the game?", FCVAR_SPONLY | FCVAR_NOTIFY);
-	
-	DeadChangeTeamEnable = GetConVarBool(cvarDeadChangeTeamEnable);
-	EnforceTeamSwitch = GetConVarBool(cvarEnforceTeamSwitch);
-	
-	HookConVarChange(cvarCoolTime, ConVarChange_cvarCoolTime);
-	HookConVarChange(cvarDeadChangeTeamEnable, ConVarChange_cvarDeadChangeTeamEnable);
-	HookConVarChange(cvarEnforceTeamSwitch, ConVarChange_cvarEnforceTeamSwitch);
+	cvarCoolTime = CreateConVar("l4d_afk_commands_changeteam_cooltime", "4.0", "Cold Down Time in seconds a player can't change team again.", FCVAR_NOTIFY, true, 1.0);
+	cvarDeadChangeTeamEnable = CreateConVar("l4d_afk_commands_deadplayer_changeteam_enable", "0", "Can Dead Survivor Player change team? (0:No, 1:Yes)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarEnforceTeamSwitch = CreateConVar("l4d_afk_commands_teamswitch_during_game_enabled", "0", "Can player use command to switch team during the game? (0:No, 1:Yes)", FCVAR_SPONLY | FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarAdmOnly = CreateConVar("l4d_afk_commands_adm_only", "0", "If 1, only admins can use command to switch team", FCVAR_SPONLY | FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarAdmImmue = CreateConVar("l4d_afk_commands_adm_immue", "1", "If 1, admins are immune to all limit", FCVAR_SPONLY | FCVAR_NOTIFY, true, 0.0, true, 1.0);
+
+	DeadChangeTeamEnable = cvarDeadChangeTeamEnable.BoolValue;
+	EnforceTeamSwitch = cvarEnforceTeamSwitch.BoolValue;
+	bAdmOnly = cvarAdmOnly.BoolValue;
+	bAdmImmue = cvarAdmImmue.BoolValue;
+	CheckSpectatePenalty();
+
+	g_hGameMode = FindConVar("mp_gamemode");
+	g_hGameMode.GetString(CvarGameMode,sizeof(CvarGameMode));
+	g_hGameMode.AddChangeHook(ConVarChange_CvarGameMode);
+	cvarCoolTime.AddChangeHook(ConVarChanged_Cvars);
+	cvarDeadChangeTeamEnable.AddChangeHook(ConVarChanged_Cvars);
+	cvarEnforceTeamSwitch.AddChangeHook(ConVarChanged_Cvars);
+	cvarAdmOnly.AddChangeHook(ConVarChanged_Cvars);
+	cvarAdmImmue.AddChangeHook(ConVarChanged_Cvars);
 	
 	HookEvent("witch_harasser_set", OnWitchWokeup);
-	
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_team", Event_PlayerChangeTeam);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 
-	
-	CheckSpectatePenalty();
 	Clear();
-	
-	g_hGameMode = FindConVar("mp_gamemode");
-	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
-	HookConVarChange(g_hGameMode, ConVarChange_CvarGameMode);
+
 	arrayclientswitchteam = CreateArray(ByteCountToCells(STEAMID_SIZE));
 	
-	AutoExecConfig(true, "l4d_afk_commands");
-
-	new Handle:hGameConf;	
+	Handle hGameConf;	
 	hGameConf = LoadGameConfigFile("l4d_afk_commands");
 	if(hGameConf == null)
 	{
@@ -169,16 +185,18 @@ public OnPluginStart()
 		SetFailState("Cant initialize SetHumanSpec SDKCall");
 		return;
 	}
-	CloseHandle(hGameConf);
+	delete hGameConf;
+
+	AutoExecConfig(true, "l4d_afk_commands");
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
 	ClearArray(arrayclientswitchteam);
-	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
+	g_hGameMode.GetString(CvarGameMode,sizeof(CvarGameMode));
 }
 
-public Action:Command_SwapTo(client, args)
+public Action Command_SwapTo(int client, int args)
 {
 	if (args < 2)
 	{
@@ -186,9 +204,9 @@ public Action:Command_SwapTo(client, args)
 		return Plugin_Handled;
 	}
 	
-	new team;
-	new String:teamStr[64];
-	GetCmdArg(args, teamStr, sizeof(teamStr))
+	int team;
+	char teamStr[64];
+	GetCmdArg(args, teamStr, sizeof(teamStr));
 	team = StringToInt(teamStr);
 	if(0>=team||team>=4)
 	{
@@ -196,11 +214,11 @@ public Action:Command_SwapTo(client, args)
 		return Plugin_Handled;
 	}
 	
-	new player_id;
+	int player_id;
 
-	new String:player[64];
+	char player[64];
 	
-	for(new i = 0; i < args - 1; i++)
+	for(int i = 0; i < args - 1; i++)
 	{
 		GetCmdArg(i+1, player, sizeof(player));
 		player_id = FindTarget(client, player, true /*nobots*/, false /*immunity*/);
@@ -221,18 +239,17 @@ public Action:Command_SwapTo(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast) 
 {
-	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	int victim = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsClientAndInGame(victim)) return;
 	clientBusy[victim] = false;
 
-	
 	if(!EnforceTeamSwitch && IsClientInGame(victim) && !IsFakeClient(victim) && GetClientTeam(victim) == 2)
 	{
-		decl String:steamID[STEAMID_SIZE];
+		char steamID[STEAMID_SIZE];
 		GetClientAuthId(victim, AuthId_Steam2,steamID, STEAMID_SIZE);
-		new index = FindStringInArray(arrayclientswitchteam, steamID);
+		int index = FindStringInArray(arrayclientswitchteam, steamID);
 		if (index == -1) {
 			PushArrayString(arrayclientswitchteam, steamID);
 			PushArrayCell(arrayclientswitchteam, 4);
@@ -244,22 +261,22 @@ public Action:Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroa
 	}
 }
 
-public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast) 
 {
-	new player = GetClientOfUserId(GetEventInt(event, "userid"));
+	int player = GetClientOfUserId(event.GetInt("userid"));
 	if(!EnforceTeamSwitch && player > 0 && player <=MaxClients && IsClientInGame(player) && !IsFakeClient(player) && GetClientTeam(player) == 2)
 	{
 		CreateTimer(2.0,checksurvivorspawn,player);		
 	}
 }
 
-public Action:checksurvivorspawn(Handle:timer,any:client)
+public Action checksurvivorspawn(Handle timer, int client)
 {
 	if(!EnforceTeamSwitch && IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client))
 	{
-		decl String:steamID[STEAMID_SIZE];
+		char steamID[STEAMID_SIZE];
 		GetClientAuthId(client, AuthId_Steam2,steamID, STEAMID_SIZE);
-		new index = FindStringInArray(arrayclientswitchteam, steamID);
+		int index = FindStringInArray(arrayclientswitchteam, steamID);
 		if (index == -1) {
 			PushArrayString(arrayclientswitchteam, steamID);
 			PushArrayCell(arrayclientswitchteam, 2);
@@ -271,29 +288,29 @@ public Action:checksurvivorspawn(Handle:timer,any:client)
 	}
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);	
 }
 
-public bool:OnClientConnect(client)
+public bool OnClientConnect(int client)
 {
 	Clear(client);
 	return true;
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	Clear(client);
 }
 
-public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3])
+public Action OnTakeDamage(int victim, int &attacker, int  &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
 {
 	if (!IsValidEdict(victim) || !IsValidEdict(attacker) || !IsValidEdict(inflictor) || !LEFT_SAFE_ROOM) { return Plugin_Continue; }
 	
 	if(GetClientTeam(victim) != 2 || !IsClientAndInGame(victim)) { return Plugin_Continue; }
 	if(WitchTarget[attacker] == victim) { return Plugin_Continue; }
-	decl String:sClassname[64];
+	char sClassname[64];
 	GetEntityClassname(inflictor, sClassname, 64);
 	if(StrEqual(sClassname, "witch"))
 	{
@@ -305,11 +322,11 @@ public Action:OnTakeDamage(victim, &attacker, &inflictor, &Float:damage, &damage
 	return Plugin_Continue;
 }
 
-public Action:OnWitchWokeup(Handle:event, const String:name[], bool:dontBroadcast)
+public Action OnWitchWokeup(Event event, const char[] name, bool dontBroadcast) 
 {
 	if(!LEFT_SAFE_ROOM) return;
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	new witchid = GetEventInt(event, "witchid");
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	int witchid = event.GetInt("witchid");
 	if(client > 0 && client <= MaxClients &&  IsClientInGame(client) && GetClientTeam(client) == 2)
 	{
 		WitchTarget[witchid] = client;
@@ -319,14 +336,14 @@ public Action:OnWitchWokeup(Handle:event, const String:name[], bool:dontBroadcas
 	
 }
 
-public Action:TraceWitchAlive(Handle:timer, any:entity)
+public Action TraceWitchAlive(Handle timer, int entity)
 {
-	new witchtarget = WitchTarget[entity];
+	int witchtarget = WitchTarget[entity];
 	if(!IsValidEntity(witchtarget)) return Plugin_Stop;
 	if (!IsValidEntity(entity))//witch dead or gone
 	{
 		//PrintToChatAll("Witch id:%d dead or gone, client: %d",entity,witchtarget);
-		new iWitch = -1;
+		int iWitch = -1;
 		while((iWitch = FindEntityByClassname(iWitch, "witch")) != -1)
 		{
 			if(iWitch!=entity && WitchTarget[iWitch] == witchtarget)
@@ -343,48 +360,46 @@ public Action:TraceWitchAlive(Handle:timer, any:entity)
 	return Plugin_Continue;
 }
 
-public Action:Event_PlayerChangeTeam(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_PlayerChangeTeam(Event event, const char[] name, bool dontBroadcast) 
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	CreateTimer(0.1, ClientReallyChangeTeam, client, _); // check delay
 }
 
-public ConVarChange_cvarCoolTime(Handle:convar, const String:oldValue[], const String:newValue[])
+public void ConVarChange_CvarGameMode(ConVar convar, const char[] oldValue, const char[] newValue)
 {
+	g_hGameMode.GetString(CvarGameMode,sizeof(CvarGameMode));
+}
+
+public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	GetCvars();
+}
+
+void GetCvars()
+{
+	DeadChangeTeamEnable = cvarDeadChangeTeamEnable.BoolValue;
+	EnforceTeamSwitch = cvarEnforceTeamSwitch.BoolValue;
+	bAdmOnly = cvarAdmOnly.BoolValue;
+	bAdmImmue = cvarAdmImmue.BoolValue;
 	CheckSpectatePenalty();
 }
 
-public ConVarChange_CvarGameMode(Handle:convar, const String:oldValue[], const String:newValue[])
+static void CheckSpectatePenalty()
 {
-	g_hGameMode = FindConVar("mp_gamemode");
-	GetConVarString(g_hGameMode,CvarGameMode,sizeof(CvarGameMode));
-}
-
-public ConVarChange_cvarDeadChangeTeamEnable(Handle:convar, const String:oldValue[], const String:newValue[])
-{
-	DeadChangeTeamEnable = StringToInt(newValue);
-}
-
-public ConVarChange_cvarEnforceTeamSwitch(Handle:convar, const String:oldValue[], const String:newValue[])
-{
-	EnforceTeamSwitch = GetConVarBool(cvarEnforceTeamSwitch);
-}
-
-static CheckSpectatePenalty()
-{
-	if(GetConVarFloat(cvarCoolTime) <= 0.0) CoolTime = 0.0;
-	else CoolTime = GetConVarFloat(cvarCoolTime);
+	if(cvarCoolTime.FloatValue <= 0.0) CoolTime = 0.0;
+	else CoolTime = cvarCoolTime.FloatValue;
 	
 }
-public Action:Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcast) 
 {
-	for (new i = 0; i < (GetArraySize(arrayclientswitchteam) / ARRAY_COUNT); i++) {
+	for (int i = 0; i < (GetArraySize(arrayclientswitchteam) / ARRAY_COUNT); i++) {
 		SetArrayCell(arrayclientswitchteam, (i * ARRAY_COUNT) + ARRAY_TEAM, 0);
 	}
 	Clear();
 	CreateTimer(1.0, PlayerLeftStart, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
 }
-public Action:PlayerLeftStart(Handle:Timer)
+public Action PlayerLeftStart(Handle Timer)
 {
 	if (LeftStartArea())
 	{
@@ -393,11 +408,12 @@ public Action:PlayerLeftStart(Handle:Timer)
 	}
 	return Plugin_Continue; 
 }
-Clear(client = -1)
+
+void Clear(int client = -1)
 {
 	if(client == -1)
 	{
-		for(new i = 1; i <= MaxClients; i++)
+		for(int i = 1; i <= MaxClients; i++)
 		{	
 			InCoolDownTime[i] = false;
 			bClientJoinedTeam[i] = false;
@@ -416,18 +432,23 @@ Clear(client = -1)
 }
 
 //When a bot replaces a player (i.e. player switches to spectate or infected)
-//public Action:OnPlayerBotReplace(Handle:event, const String:name[], bool:dontBroadcast)
+//public Action OnPlayerBotReplace(Event event, const char[] name, bool dontBroadcast) 
 //{
-//	new client = GetClientOfUserId(GetEventInt(event, "player"));
+//	int client = GetClientOfUserId(hEvent.GetInt( "player"));
 //	InCoolDownTime[client] = true;
 //}
 
-
-public Action:TurnClientToSpectate(client, argCount)
+public Action TurnClientToSpectate(int client, int argCount)
 {
 	if (client == 0)
 	{
 		PrintToServer("[TS] command cannot be used by server.");
+		return Plugin_Handled;
+	}
+	bool bIsAdm = IsPlayerGenericAdmin(client);
+	if(!bIsAdm && bAdmOnly)
+	{
+		ReplyToCommand(client, "You don't have access to change team");
 		return Plugin_Handled;
 	}
 	if(IsClientIdle(client))
@@ -437,7 +458,7 @@ public Action:TurnClientToSpectate(client, argCount)
 	}
 	if(GetClientTeam(client) != 1)
 	{
-		if(!CanClientChangeTeam(client,1)) return Plugin_Handled;
+		if(!CanClientChangeTeam(client,1,bIsAdm)) return Plugin_Handled;
 		
 		if(GetClientTeam(client) == 2)
 			FakeClientCommand(client, "go_away_from_keyboard");
@@ -445,7 +466,7 @@ public Action:TurnClientToSpectate(client, argCount)
 		CreateTimer(0.1, CheckClientInSpecTeam, client, _); // check if client really spec
 		
 		clientteam[client] = 1;
-		StartChangeTeamCoolDown(client);
+		StartChangeTeamCoolDown(client,bIsAdm);
 	}
 	else if(GetClientTeam(client) == 1 && (StrEqual(CvarGameMode,"versus")||StrEqual(CvarGameMode,"scavenge")))
 	{
@@ -455,16 +476,22 @@ public Action:TurnClientToSpectate(client, argCount)
 	return Plugin_Handled;
 }
 
-public Action:Timer_Respectate(Handle:timer, any:client)
+public Action Timer_Respectate(Handle timer, int client)
 {
 	ChangeClientTeam(client, 1);
 }
 
-public Action:TurnClientToSurvivors(client, args)
+public Action TurnClientToSurvivors(int client, int args)
 { 
 	if (client == 0)
 	{
 		PrintToServer("[TS] command cannot be used by server.");
+		return Plugin_Handled;
+	}
+	bool bIsAdm = IsPlayerGenericAdmin(client);
+	if(bAdmOnly && !bIsAdm)
+	{
+		ReplyToCommand(client, "You don't have access to change team");
 		return Plugin_Handled;
 	}
 	if (GetClientTeam(client) == 2)			//if client is survivor
@@ -478,11 +505,11 @@ public Action:TurnClientToSurvivors(client, args)
 		return Plugin_Handled;
 	}
 	
-	if(!CanClientChangeTeam(client,2)) return Plugin_Handled;
+	if(!CanClientChangeTeam(client,2,bIsAdm)) return Plugin_Handled;
 	
-	new maxSurvivorSlots = GetTeamMaxSlots(2);
-	new survivorUsedSlots = GetTeamHumanCount(2);
-	new freeSurvivorSlots = (maxSurvivorSlots - survivorUsedSlots);
+	int maxSurvivorSlots = GetTeamMaxSlots(2);
+	int survivorUsedSlots = GetTeamHumanCount(2);
+	int freeSurvivorSlots = (maxSurvivorSlots - survivorUsedSlots);
 	//debug
 	//PrintToChatAll("Number of Survivor Slots %d.\nNumber of Survivor Players %d.\nNumber of Free Slots %d.", maxSurvivorSlots, survivorUsedSlots, freeSurvivorSlots);
 	
@@ -493,7 +520,7 @@ public Action:TurnClientToSurvivors(client, args)
 	}
 	else
 	{
-		new bot;
+		int bot;
 		
 		for(bot = 1; 
 			bot < (MaxClients + 1) && (!IsClientConnected(bot) || !IsFakeClient(bot) || (GetClientTeam(bot) != 2));
@@ -501,8 +528,8 @@ public Action:TurnClientToSurvivors(client, args)
 		
 		if(bot == (MaxClients + 1))
 		{			
-			new String:command[] = "sb_add";
-			new flags = GetCommandFlags(command);
+			char command[] = "sb_add";
+			int flags = GetCommandFlags(command);
 			SetCommandFlags(command, flags & ~FCVAR_CHEAT);
 			
 			ServerCommand("sb_add");
@@ -521,7 +548,7 @@ public Action:TurnClientToSurvivors(client, args)
 				{
 					CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 					clientteam[client] = 2;	
-					StartChangeTeamCoolDown(client);
+					StartChangeTeamCoolDown(client,bIsAdm);
 					
 				}
 				else
@@ -534,23 +561,29 @@ public Action:TurnClientToSurvivors(client, args)
 		{
 			CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 			clientteam[client] = 2;	
-			StartChangeTeamCoolDown(client);
+			StartChangeTeamCoolDown(client,bIsAdm);
 		}
 		else //其他未知模式
 		{
 			CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 			clientteam[client] = 2;	
-			StartChangeTeamCoolDown(client);
+			StartChangeTeamCoolDown(client,bIsAdm);
 		}
 	}
 	return Plugin_Handled;
 }
 
-public Action:TurnClientToInfected(client, args)
+public Action TurnClientToInfected(int client, int args)
 { 
 	if (client == 0)
 	{
 		PrintToServer("[TS] command cannot be used by server.");
+		return Plugin_Handled;
+	}
+	bool bIsAdm = IsPlayerGenericAdmin(client);
+	if(bAdmOnly && !bIsAdm)
+	{
+		ReplyToCommand(client, "You don't have access to change team");
 		return Plugin_Handled;
 	}
 	if (GetClientTeam(client) == 3)			//if client is Infected
@@ -558,9 +591,9 @@ public Action:TurnClientToInfected(client, args)
 		PrintHintText(client, "[TS] 你已經在特感隊伍了.");
 		return Plugin_Handled;
 	}
-	new maxInfectedSlots = GetTeamMaxSlots(3);
-	new infectedUsedSlots = GetTeamHumanCount(3);
-	new freeInfectedSlots = (maxInfectedSlots - infectedUsedSlots);
+	int maxInfectedSlots = GetTeamMaxSlots(3);
+	int infectedUsedSlots = GetTeamHumanCount(3);
+	int freeInfectedSlots = (maxInfectedSlots - infectedUsedSlots);
 	if (freeInfectedSlots <= 0)
 	{
 		PrintHintText(client, "[TS] 特感隊伍已滿.");
@@ -571,24 +604,24 @@ public Action:TurnClientToInfected(client, args)
 		return Plugin_Handled;
 	}
 	
-	if(!CanClientChangeTeam(client,3)) return Plugin_Handled;
+	if(!CanClientChangeTeam(client,3,bIsAdm)) return Plugin_Handled;
 	
 	ChangeClientTeam(client, 3);clientteam[client] = 3;
 	
-	StartChangeTeamCoolDown(client);
+	StartChangeTeamCoolDown(client,bIsAdm);
 	
 	return Plugin_Handled;
 }
 	
-public Action:Survivor_Take_Control(Handle:timer, any:client)
+public Action Survivor_Take_Control(Handle timer, int client)
 {
-		new localClientTeam = GetClientTeam(client);
-		new String:command[] = "sb_takecontrol";
-		new flags = GetCommandFlags(command);
+		int localClientTeam = GetClientTeam(client);
+		char command[] = "sb_takecontrol";
+		int flags = GetCommandFlags(command);
 		SetCommandFlags(command, flags & ~FCVAR_CHEAT);
-		new String:botNames[][] = { "teengirl", "manager", "namvet", "biker" ,"coach","gambler","mechanic","producer"};
+		char botNames[][] = { "teengirl", "manager", "namvet", "biker" ,"coach","gambler","mechanic","producer"};
 		
-		new i = 0;
+		int i = 0;
 		while((localClientTeam != 2) && i < 8)
 		{
 			FakeClientCommand(client, "sb_takecontrol %s", botNames[i]);
@@ -597,12 +630,13 @@ public Action:Survivor_Take_Control(Handle:timer, any:client)
 		}
 		SetCommandFlags(command, flags);
 }
-stock GetTeamMaxSlots(team)
+
+stock int GetTeamMaxSlots(int team)
 {
-	new teammaxslots = 0;
+	int teammaxslots = 0;
 	if(team == 2)
 	{
-		for(new i = 1; i < (MaxClients + 1); i++)
+		for(int i = 1; i < (MaxClients + 1); i++)
 		{
 			if(IsClientInGame(i) && GetClientTeam(i) == team)
 			{
@@ -612,16 +646,16 @@ stock GetTeamMaxSlots(team)
 	}
 	else if (team == 3)
 	{
-		return GetConVarInt(FindConVar("z_max_player_zombies"));
+		return FindConVar("z_max_player_zombies").IntValue;
 	}
 	
 	return teammaxslots;
 }
-stock GetTeamHumanCount(team)
+stock int GetTeamHumanCount(int team)
 {
-	new humans = 0;
+	int humans = 0;
 	
-	new i;
+	int i;
 	for(i = 1; i < (MaxClients + 1); i++)
 	{
 		if(IsClientInGameHuman(i) && GetClientTeam(i) == team)
@@ -633,15 +667,15 @@ stock GetTeamHumanCount(team)
 	return humans;
 }
 //client is in-game and not a bot and not spec
-bool:IsClientInGameHuman(client)
+bool IsClientInGameHuman(int client)
 {
 	return IsClientInGame(client) && !IsFakeClient(client) && ((GetClientTeam(client) == 2 || GetClientTeam(client) == 3));
 }
 
-public bool:IsInteger(String:buffer[])
+public bool IsInteger(char[] buffer)
 {
-    new len = strlen(buffer);
-    for (new i = 0; i < len; i++)
+    int len = strlen(buffer);
+    for (int i = 0; i < len; i++)
     {
         if ( !IsCharNumeric(buffer[i]) )
             return false;
@@ -650,26 +684,26 @@ public bool:IsInteger(String:buffer[])
     return true;    
 }
 
-public Action:WTF(client, args) //玩家press m
+public Action WTF(int client, int args) //玩家press m
 {
 	if (client == 0)
 	{
 		PrintToServer("[TS] command cannot be used by server.");
 		return Plugin_Handled;
 	}
-	
-	//if( args < 1 )
-	//{
-	//	return Plugin_Handled;
-	//}
-	
-	if(!CanClientChangeTeam(client,5)) return Plugin_Handled;
+	bool bIsAdm = IsPlayerGenericAdmin(client);
+	if(bAdmOnly && !bIsAdm)
+	{
+		ReplyToCommand(client, "You don't have access to change team");
+		return Plugin_Handled;
+	}
+	if(!CanClientChangeTeam(client,5,bIsAdm)) return Plugin_Handled;
 	
 	if(args == 2)
 	{
-		decl String:arg1[64];
+		char arg1[64];
 		GetCmdArg(1, arg1, 64);
-		decl String:arg2[64];
+		char arg2[64];
 		GetCmdArg(2, arg2, 64);
 		if(StrEqual(arg1,"2") &&
 			(StrEqual(arg2,"Nick") ||
@@ -689,11 +723,11 @@ public Action:WTF(client, args) //玩家press m
 		return Plugin_Handled;
 	}
 	
-	new String:arg1[64];
+	char arg1[64];
 	GetCmdArg(1, arg1, 64);
 	if(IsInteger(arg1))
 	{
-		new iteam = StringToInt(arg1);
+		int iteam = StringToInt(arg1);
 		if(iteam == 2)
 		{
 			FakeClientCommand(client, "sm_sur");
@@ -714,14 +748,19 @@ public Action:WTF(client, args) //玩家press m
 	return Plugin_Continue;
 }
 
-public Action:WTF2(client, args)
+public Action WTF2(int client, int args)
 {
 	if (client == 0)
 	{
 		PrintToServer("[TS] command cannot be used by server.");
 		return Plugin_Handled;
 	}
-	
+	bool bIsAdm = IsPlayerGenericAdmin(client);
+	if(bAdmOnly && !bIsAdm)
+	{
+		ReplyToCommand(client, "You don't have access to change team");
+		return Plugin_Handled;
+	}
 	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
 		PrintHintText(client, "[TS] 走開!! 特感玩家無法閒置!.");
@@ -733,13 +772,13 @@ public Action:WTF2(client, args)
 		return Plugin_Handled;
 	}
 	
-	if(!CanClientChangeTeam(client,1)) return Plugin_Handled;
+	if(!CanClientChangeTeam(client,1,bIsAdm)) return Plugin_Handled;
 	
 	clientteam[client] = 1;
-	StartChangeTeamCoolDown(client);
+	StartChangeTeamCoolDown(client,bIsAdm);
 	return Plugin_Continue;
 }
-stock bool:IsClientAndInGame(index)
+stock bool IsClientAndInGame(int index)
 {
 	if (index > 0 && index < MaxClients)
 	{
@@ -748,14 +787,14 @@ stock bool:IsClientAndInGame(index)
 	return false;
 }
 
-bool:PlayerIsAlive (client)
+bool PlayerIsAlive (int client)
 {
 	if (!GetEntProp(client,Prop_Send, "m_lifeState"))
 		return true;
 	return false;
 }
 
-public Action:CheckClientInSpecTeam(Handle:timer, any:client)
+public Action CheckClientInSpecTeam(Handle timer, int client)
 {
 	if(!IsClientAndInGame(client)) return;
 	
@@ -763,13 +802,13 @@ public Action:CheckClientInSpecTeam(Handle:timer, any:client)
 		ChangeClientTeam(client, 1);
 }
 
-public Action:TakeOverBot(Handle:timer, any:client)
+public Action TakeOverBot(Handle timer, int client)
 {
 	if (!IsClientInGame(client)) return;
 	if (GetClientTeam(client) == 2) return;
 	if (IsFakeClient(client)) return;
 	
-	new bot = FindBotToTakeOver(true)	;
+	int bot = FindBotToTakeOver(true)	;
 	if (bot==0)
 	{
 		bot = FindBotToTakeOver(false);
@@ -792,7 +831,7 @@ public Action:TakeOverBot(Handle:timer, any:client)
 	return;
 }
 
-bool:IsAlive(client)
+bool IsAlive(int client)
 {
 	if(!GetEntProp(client, Prop_Send, "m_lifeState"))
 		return true;
@@ -800,12 +839,12 @@ bool:IsAlive(client)
 	return false;
 }
 
-bool:IsClientIdle(client)
+bool IsClientIdle(int client)
 {
 	if(GetClientTeam(client) != 1)
 		return false;
 	
-	for(new i = 1; i <= MaxClients; i++)
+	for(int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(i) && IsFakeClient(i) && GetClientTeam(i) == 2 && IsAlive(i))
 		{
@@ -819,9 +858,9 @@ bool:IsClientIdle(client)
 	return false;
 }
 
-stock FindBotToTakeOver(bool alive)
+stock int FindBotToTakeOver(bool alive)
 {
-	for (new i = 1; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i))
 		{
@@ -835,13 +874,13 @@ stock FindBotToTakeOver(bool alive)
 	return 0;
 }
 
-bool:HasIdlePlayer(bot)
+bool HasIdlePlayer(int bot)
 {
 	if(IsClientConnected(bot) && IsClientInGame(bot) && IsFakeClient(bot) && GetClientTeam(bot) == 2 && IsAlive(bot))
 	{
 		if(HasEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))
 		{
-			new client = GetClientOfUserId(GetEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))	;		
+			int client = GetClientOfUserId(GetEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))	;		
 			if(client > 0 && client <= MaxClients && IsClientInGame(client) && !IsFakeClient(client) && IsClientObserver(client))
 			{
 				return true;
@@ -851,8 +890,12 @@ bool:HasIdlePlayer(bot)
 	return false;
 }
 
-bool:CanClientChangeTeam(client,changeteam)
+bool CanClientChangeTeam(int client, int changeteam, bool isAdm)
 {
+	if(isAdm && bAdmImmue) //adm免疫力特權
+	{
+		return true;
+	}
 	if (L4D2_GetInfectedAttacker(client) != -1 || clientBusy[client])
 	{
 		PrintHintText(client, "[TS] 特感抓住期間禁止換隊.");
@@ -880,9 +923,9 @@ bool:CanClientChangeTeam(client,changeteam)
 	return true;
 }
 
-StartChangeTeamCoolDown(client)
+void StartChangeTeamCoolDown(int client, bool bIsAdm)
 {
-	if(InCoolDownTime[client]||!LEFT_SAFE_ROOM) return;
+	if(InCoolDownTime[client]||!LEFT_SAFE_ROOM||(bIsAdm && bAdmImmue)) return;
 	if(CoolTime > 0.0)
 	{
 		InCoolDownTime[client] = true;
@@ -891,25 +934,27 @@ StartChangeTeamCoolDown(client)
 	}
 }
 
-public Action:ClientReallyChangeTeam(Handle:timer, any:client)
+public Action ClientReallyChangeTeam(Handle timer, int client)
 {
 	if(!IsClientAndInGame(client)||IsFakeClient(client)) return;
-	
+	bool bIsAdm = IsPlayerGenericAdmin(client);
+	if(bIsAdm && bAdmImmue) return;
+
 	if(!EnforceTeamSwitch)
 	{
-		new newteam = GetClientTeam(client);
+		int newteam = GetClientTeam(client);
 		if(newteam != 1)
 		{
-			decl String:steamID[STEAMID_SIZE];
+			char steamID[STEAMID_SIZE];
 			GetClientAuthId(client, AuthId_Steam2, steamID, STEAMID_SIZE);
-			new index = FindStringInArray(arrayclientswitchteam, steamID);
+			int index = FindStringInArray(arrayclientswitchteam, steamID);
 			if (index == -1) {
 				PushArrayString(arrayclientswitchteam, steamID);
 				PushArrayCell(arrayclientswitchteam, newteam);
 			}
 			else
 			{
-				new oldteam = GetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM);
+				int oldteam = GetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM);
 				if(!LEFT_SAFE_ROOM || oldteam == 0)
 					SetArrayCell(arrayclientswitchteam, index + ARRAY_TEAM, newteam);
 				else
@@ -938,12 +983,12 @@ public Action:ClientReallyChangeTeam(Handle:timer, any:client)
 	//PrintToChatAll("client: %N change Team: %d clientteam[client]:%d",client,GetClientTeam(client),clientteam[client]);
 	if(GetClientTeam(client) != clientteam[client])
 	{
-		if(clientteam[client] != 0) StartChangeTeamCoolDown(client);
+		if(clientteam[client] != 0) StartChangeTeamCoolDown(client,bIsAdm);
 		clientteam[client] = GetClientTeam(client);		
 	}
 }
 
-public Action:Timer_CanJoin(Handle:timer, any:client)
+public Action Timer_CanJoin(Handle timer, int client)
 {
 	if (!InCoolDownTime[client] || 
 	!IsClientInGame(client) || 
@@ -987,14 +1032,14 @@ public Action:Timer_CanJoin(Handle:timer, any:client)
 	return Plugin_Continue;
 }
 
-bool:LeftStartArea()
+bool LeftStartArea()
 {
-	new ent = -1, maxents = GetMaxEntities();
-	for (new i = MaxClients+1; i <= maxents; i++)
+	int ent = -1, maxents = GetMaxEntities();
+	for (int i = MaxClients+1; i <= maxents; i++)
 	{
 		if (IsValidEntity(i))
 		{
-			decl String:netclass[64];
+			char netclass[64];
 			GetEntityNetClass(i, netclass, sizeof(netclass));
 			
 			if (StrEqual(netclass, "CTerrorPlayerResource"))
@@ -1015,9 +1060,9 @@ bool:LeftStartArea()
 	return false;
 }
 
-stock L4D2_GetInfectedAttacker(client)
+stock int L4D2_GetInfectedAttacker(int client)
 {
-	new attacker;
+	int attacker;
 
 	if(L4D2Version)
 	{
@@ -1057,3 +1102,13 @@ stock L4D2_GetInfectedAttacker(client)
 
 	return -1;
 }
+
+bool IsPlayerGenericAdmin(int client)
+{
+    if (CheckCommandAccess(client, "generic_admin", ADMFLAG_GENERIC, false))
+    {
+        return true;
+    }
+
+    return false;
+}  
