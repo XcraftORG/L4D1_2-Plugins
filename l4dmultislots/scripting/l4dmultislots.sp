@@ -12,8 +12,10 @@
 
 #include <sourcemod>
 #include <sdktools>
+#pragma semicolon 1
+#pragma newdecls required //強制1.7以後的新語法
 
-#define PLUGIN_VERSION 				"1.5"
+#define PLUGIN_VERSION 				"1.6"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -24,31 +26,33 @@
 #define DAMAGE_EVENTS_ONLY			1
 #define	DAMAGE_YES					2
 
-new Handle:hMaxSurvivors
-new Handle:timer_SpawnTick = INVALID_HANDLE
-new Handle:timer_SpecCheck = INVALID_HANDLE
-new bool:gbVehicleLeaving
-new bool:gbPlayedAsSurvivorBefore[MAXPLAYERS+1]
-new bool:gbFirstItemPickedUp
-new bool:gbPlayerPickedUpFirstItem[MAXPLAYERS+1]
-//new Float:vecLocationStart[3]
-new String:gMapName[128]
-new giIdleTicks[MAXPLAYERS+1]
-static Handle:hSetHumanSpec;
+ConVar hMaxSurvivors;
+ConVar hTime;
+int iMaxSurvivors,iTime;
+Handle timer_SpecCheck = INVALID_HANDLE;
+bool gbVehicleLeaving;
+bool gbPlayedAsSurvivorBefore[MAXPLAYERS+1];
+bool gbFirstItemPickedUp;
+bool gbPlayerPickedUpFirstItem[MAXPLAYERS+1];
+char gMapName[128];
+int giIdleTicks[MAXPLAYERS+1];
+static Handle hSetHumanSpec;
+int g_iRoundStart,g_iPlayerSpawn ;
+bool bKill;
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name 			= "[L4D(2)] MultiSlots",
-	author 			= "SwiftReal, MI 5",
+	author 			= "SwiftReal, MI 5, HarryPotter",
 	description 	= "Allows additional survivor players in coop, versus, and survival",
 	version 		= PLUGIN_VERSION,
-	url 			= "N/A"
+	url 			= "https://steamcommunity.com/id/TIGER_x_DRAGON/"
 }
 
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max) 
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) 
 {
 	// This plugin will only work on L4D 1/2
-	decl String:GameName[64];
+	char GameName[64];
 	GetGameFolderName(GameName, sizeof(GameName));
 	if (StrContains(GameName, "left4dead", false) == -1)
 		return APLRes_Failure; 
@@ -56,20 +60,26 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	return APLRes_Success; 
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	// Create plugin version cvar and set it
 	CreateConVar("l4d_multislots_version", PLUGIN_VERSION, "L4D(2) MultiSlots version", CVAR_FLAGS|FCVAR_SPONLY|FCVAR_REPLICATED);
 	SetConVarString(FindConVar("l4d_multislots_version"), PLUGIN_VERSION);
 	
 	// Register commands
-	RegAdminCmd("sm_muladdbot", AddBot, ADMFLAG_KICK, "Attempt to add and teleport a survivor bot");
+	RegAdminCmd("sm_muladdbot", AddBot, ADMFLAG_KICK, "Attempt to add a survivor bot");
 	RegConsoleCmd("sm_join", JoinTeam, "Attempt to join Survivors");
 	
 	// Register cvars
 	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "4", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)", CVAR_FLAGS, true, 4.0, true, 32.0);
+	hTime = CreateConVar("l4d_multislots_time", "100", "Spawn a dead survivor bot after a certain time round starts [0: Disable]", CVAR_FLAGS, true, 0.0);
+	
+	GetCvars();
+	hMaxSurvivors.AddChangeHook(ConVarChanged_Cvars);
+	hTime.AddChangeHook(ConVarChanged_Cvars);
 	
 	// Hook events
+
 	HookEvent("item_pickup", evtRoundStartAndItemPickup);
 	HookEvent("player_left_start_area", evtPlayerLeftStart);
 	HookEvent("survivor_rescued", evtSurvivorRescued);
@@ -81,6 +91,8 @@ public OnPluginStart()
 	HookEvent("player_team", evtPlayerTeam);
 	HookEvent("player_spawn", evtPlayerSpawn);
 	HookEvent("player_death", evtPlayerDeath);
+	HookEvent("round_start", 		Event_RoundStart);
+	HookEvent("round_end",			Event_RoundEnd,		EventHookMode_PostNoCopy);
 	
 	// Create or execute plugin configuration file
 	AutoExecConfig(true, "l4dmultislots");
@@ -89,7 +101,7 @@ public OnPluginStart()
 	// Prep SDK Calls
 	// ======================================
 
-	new Handle:hGameConf	;	
+	Handle hGameConf;	
 	hGameConf = LoadGameConfigFile("l4dmultislots");
 	if(hGameConf == null)
 	{
@@ -106,10 +118,15 @@ public OnPluginStart()
 		SetFailState("Cant initialize SetHumanSpec SDKCall");
 		return;
 	}
-	CloseHandle(hGameConf);
+	delete hGameConf;
 }
 
-public OnMapStart()
+public void OnPluginEnd()
+{
+	ClearDefault();
+}
+
+public void OnMapStart()
 {
 	GetCurrentMap(gMapName, sizeof(gMapName));
 	//FindLocationStart()
@@ -117,7 +134,18 @@ public OnMapStart()
 	gbFirstItemPickedUp = false;
 }
 
-public bool:OnClientConnect(client, String:rejectmsg[], maxlen)
+public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	GetCvars();
+}
+
+void GetCvars()
+{
+	iMaxSurvivors = hMaxSurvivors.IntValue;
+	iTime = hTime.IntValue;
+}
+
+public bool OnClientConnect(int client, char[] rejectmsg, int maxlen)
 {
 	if(client)
 	{
@@ -129,34 +157,35 @@ public bool:OnClientConnect(client, String:rejectmsg[], maxlen)
 	return true;
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	gbPlayedAsSurvivorBefore[client] = false;
 	gbPlayerPickedUpFirstItem[client] = false;
 }
 
-public OnMapEnd()
+public void OnMapEnd()
 {
 	StopTimers();
 	gbVehicleLeaving = false;
 	gbFirstItemPickedUp = false;
+	ClearDefault();
 }
 
 ////////////////////////////////////
 // Callbacks
 ////////////////////////////////////
-public Action:AddBot(client, args)
+public Action AddBot(int client, int args)
 {
 	if(client == 0)
 		return Plugin_Continue;
 	
-	if(SpawnFakeClientAndTeleport())
+	if(SpawnFakeClient())
 		PrintToChat(client,"已召喚一個倖存者Bot.");
 	
 	return Plugin_Handled;
 }
 
-public Action:JoinTeam(client, args)
+public Action JoinTeam(int client,int args)
 {
 	if(!IsClientConnected(client) || !IsClientInGame(client) || GetClientTeam(client) == 3)
 		return Plugin_Handled;
@@ -179,9 +208,9 @@ public Action:JoinTeam(client, args)
 	}
 	else
 	{			
-		if(TotalFreeAliveBots() == 0)
+		if(TotalFreeBots() == 0)
 		{
-			SpawnFakeClientAndTeleport();
+			SpawnFakeClient();
 			
 			CreateTimer(1.0, Timer_AutoJoinTeam, client, TIMER_REPEAT)	;			
 		}
@@ -193,7 +222,7 @@ public Action:JoinTeam(client, args)
 ////////////////////////////////////
 // Events
 ////////////////////////////////////
-public evtRoundStartAndItemPickup(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtRoundStartAndItemPickup(Event event, const char[] name, bool dontBroadcast) 
 {
 	if(!gbFirstItemPickedUp)
 	{
@@ -203,7 +232,7 @@ public evtRoundStartAndItemPickup(Handle:event, const String:name[], bool:dontBr
 		
 		gbFirstItemPickedUp = true;
 	}
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(!gbPlayerPickedUpFirstItem[client] && !IsFakeClient(client))
 	{
 		// force setting client cvars here...
@@ -213,18 +242,18 @@ public evtRoundStartAndItemPickup(Handle:event, const String:name[], bool:dontBr
 	}
 }
 
-public evtPlayerActivate(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtPlayerActivate(Event event, const char[] name, bool dontBroadcast) 
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(client)
 	{
 		if((GetClientTeam(client) != TEAM_INFECTED) && (GetClientTeam(client) != TEAM_SURVIVORS) && !IsFakeClient(client) && !IsClientIdle(client))
 			CreateTimer(DELAY_CHANGETEAM_NEWPLAYER, Timer_AutoJoinTeam, client, TIMER_REPEAT);
 	}
 }
-public evtPlayerLeftStart(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtPlayerLeftStart(Event event, const char[] name, bool dontBroadcast) 
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(client)
 	{
 		if(IsClientConnected(client) && IsClientInGame(client))
@@ -235,10 +264,10 @@ public evtPlayerLeftStart(Handle:event, const String:name[], bool:dontBroadcast)
 	}
 }
 
-public evtPlayerTeam(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtPlayerTeam(Event event, const char[] name, bool dontBroadcast) 
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	new newteam = GetEventInt(event, "team");
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int newteam = GetEventInt(event, "team");
 	
 	if(client)
 	{
@@ -249,7 +278,7 @@ public evtPlayerTeam(Handle:event, const String:name[], bool:dontBroadcast)
 		
 		if(newteam == TEAM_INFECTED)
 		{
-			new String:PlayerName[100];
+			char PlayerName[100];
 			GetClientName(client, PlayerName, sizeof(PlayerName));
 			//PrintToChatAll("\x01[\x04MultiSlots\x01] %s joined the Infected Team", PlayerName);
 			giIdleTicks[client] = 0;
@@ -257,9 +286,9 @@ public evtPlayerTeam(Handle:event, const String:name[], bool:dontBroadcast)
 	}
 }
 
-public evtPlayerReplacedBot(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtPlayerReplacedBot(Event event, const char[] name, bool dontBroadcast) 
 {
-	new client = GetClientOfUserId(GetEventInt(event, "player"));
+	int client = GetClientOfUserId(GetEventInt(event, "player"));
 	if(!client) return;
 	if(GetClientTeam(client)!=TEAM_SURVIVORS || IsFakeClient(client)) return;
 	
@@ -271,7 +300,7 @@ public evtPlayerReplacedBot(Handle:event, const String:name[], bool:dontBroadcas
 		
 		BypassAndExecuteCommand(client, "give", "health");
 		
-		decl String:GameMode[30];
+		char GameMode[30];
 		GetConVarString(FindConVar("mp_gamemode"), GameMode, sizeof(GameMode))		;	
 		if(StrEqual(GameMode, "mutation3", false))
 		{
@@ -285,15 +314,15 @@ public evtPlayerReplacedBot(Handle:event, const String:name[], bool:dontBroadcas
 			GiveMedkit(client);
 		}
 		
-		decl String:PlayerName[100];
+		char PlayerName[100];
 		GetClientName(client, PlayerName, sizeof(PlayerName));
 		//PrintToChatAll("\x01[\x04MultiSlots\x01] %s joined the Survivor Team", PlayerName);
 	}
 }
 
-public evtSurvivorRescued(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtSurvivorRescued(Event event, const char[] name, bool dontBroadcast) 
 {
-	new client = GetClientOfUserId(GetEventInt(event, "victim"));
+	int client = GetClientOfUserId(GetEventInt(event, "victim"));
 	if(client)
 	{	
 		StripWeapons(client);
@@ -303,16 +332,16 @@ public evtSurvivorRescued(Handle:event, const String:name[], bool:dontBroadcast)
 	}
 }
 
-public evtFinaleVehicleLeaving(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtFinaleVehicleLeaving(Event event, const char[] name, bool dontBroadcast) 
 {
-	for (new i = 1; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(i))
 		{
 			if((GetClientTeam(i) == TEAM_SURVIVORS) && IsAlive(i))
 			{
 				SetEntProp(i, Prop_Data, "m_takedamage", DAMAGE_EVENTS_ONLY, 1);
-				new Float:newOrigin[3] = { 0.0, 0.0, 0.0 };
+				float newOrigin[3] = { 0.0, 0.0, 0.0 };
 				TeleportEntity(i, newOrigin, NULL_VECTOR, NULL_VECTOR);
 				SetEntProp(i, Prop_Data, "m_takedamage", DAMAGE_YES, 1);
 			}
@@ -322,55 +351,82 @@ public evtFinaleVehicleLeaving(Handle:event, const String:name[], bool:dontBroad
 	gbVehicleLeaving = true;
 }
 
-public evtMissionLost(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtMissionLost(Event event, const char[] name, bool dontBroadcast) 
 {
 	gbFirstItemPickedUp = false;
 }
 
-public evtBotReplacedPlayer(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtBotReplacedPlayer(Event event, const char[] name, bool dontBroadcast) 
 {
-	new fakebot = GetClientOfUserId(GetEventInt(event, "bot"));
+	int fakebot = GetClientOfUserId(GetEventInt(event, "bot"));
 	if(fakebot && GetClientTeam(fakebot) == TEAM_SURVIVORS && IsFakeClient(fakebot))
 		CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, fakebot);
 }
 
-public evtPlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
+public void evtPlayerSpawn(Event event, const char[] name, bool dontBroadcast) 
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
+		CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, client);	
+
+	if( g_iPlayerSpawn == 0 && g_iRoundStart == 1 )
+		CreateTimer(0.5, PluginStart);
+	g_iPlayerSpawn = 1;	
+}
+
+public void evtPlayerDeath(Event event, const char[] name, bool dontBroadcast) 
+{
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
 		CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, client);	
 }
 
-public evtPlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+void ClearDefault()
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
-		CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, client);	
+	g_iRoundStart = 0;
+	g_iPlayerSpawn = 0;
+	bKill = false;
+}
+
+public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	ClearDefault();
+}
+
+public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
+{
+	if( g_iPlayerSpawn == 1 && g_iRoundStart == 0 )
+		CreateTimer(0.5, PluginStart);
+	g_iRoundStart = 1;
 }
 
 ////////////////////////////////////
 // timers
 ////////////////////////////////////
-public Action:Timer_SpawnTick(Handle:timer)
+
+int iCountDownTime;
+public Action PluginStart(Handle timer)
 {
-	new iTotalSurvivors = TotalSurvivors();
-	if(iTotalSurvivors >= 4)
+	iCountDownTime = iTime;
+	if(iCountDownTime > 0) CreateTimer(1.0, CountDown,_,TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action CountDown(Handle timer)
+{
+	if(iCountDownTime <= 0) 
 	{
-		timer_SpawnTick = INVALID_HANDLE	;	
+		bKill = true;
 		return Plugin_Stop;
 	}
-	
-	for(; iTotalSurvivors < 4; iTotalSurvivors++)
-		SpawnFakeClient();
-	
+	iCountDownTime--;
 	return Plugin_Continue;
 }
 
-public Action:Timer_SpecCheck(Handle:timer)
+public Action Timer_SpecCheck(Handle timer)
 {
 	if(gbVehicleLeaving) return Plugin_Stop;
 	
-	for (new i = 1; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(i))
 		{
@@ -378,20 +434,20 @@ public Action:Timer_SpecCheck(Handle:timer)
 			{
 				if(!IsClientIdle(i))
 				{
-					new String:PlayerName[100];
+					char PlayerName[100];
 					GetClientName(i, PlayerName, sizeof(PlayerName))		;
 					PrintToChat(i, "\x01[\x04MultiSlots\x01] %s, 聊天視窗輸入 \x03!join\x01 來加入倖存者隊伍", PlayerName);
 				}
 			}
 		}
 	}	
-	for (new i = 1; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(i))		
 		{
 			if((GetClientTeam(i) == TEAM_SURVIVORS) && !IsFakeClient(i) && !IsAlive(i))
 			{
-				new String:PlayerName[100];
+				char PlayerName[100];
 				GetClientName(i, PlayerName, sizeof(PlayerName));
 				PrintToChat(i, "\x01[\x04MultiSlots\x01] %s, 請等待救援或復活", PlayerName);
 			}
@@ -400,7 +456,7 @@ public Action:Timer_SpecCheck(Handle:timer)
 	return Plugin_Continue;
 }
 
-public Action:Timer_AutoJoinTeam(Handle:timer, any:client)
+public Action Timer_AutoJoinTeam(Handle timer, int client)
 {
 	if(!IsClientConnected(client))
 		return Plugin_Stop;
@@ -417,9 +473,11 @@ public Action:Timer_AutoJoinTeam(Handle:timer, any:client)
 	return Plugin_Continue;
 }
 
-public Action:Timer_KickNoNeededBot(Handle:timer, any:bot)
+public Action Timer_KickNoNeededBot(Handle timer, int bot)
 {
-	if((TotalSurvivors() <= GetConVarInt(hMaxSurvivors)))
+	//PrintToChatAll("TotalSurvivors(): %d , iMaxSurvivors: %d",TotalSurvivors(),iMaxSurvivors);
+
+	if((TotalSurvivors() <= iMaxSurvivors))
 		return Plugin_Handled;
 	
 	if(IsClientConnected(bot) && IsClientInGame(bot) && IsFakeClient(bot))
@@ -427,7 +485,7 @@ public Action:Timer_KickNoNeededBot(Handle:timer, any:bot)
 		if(GetClientTeam(bot) != TEAM_SURVIVORS)
 			return Plugin_Handled;
 		
-		decl String:BotName[100]
+		char BotName[100];
 		GetClientName(bot, BotName, sizeof(BotName))	;			
 		if(StrEqual(BotName, "FakeClient", true))
 			return Plugin_Handled;
@@ -441,7 +499,7 @@ public Action:Timer_KickNoNeededBot(Handle:timer, any:bot)
 	return Plugin_Handled;
 }
 
-public Action:Timer_KickFakeBot(Handle:timer, any:fakeclient)
+public Action Timer_KickFakeBot(Handle timer, int fakeclient)
 {
 	if(IsClientConnected(fakeclient))
 	{
@@ -453,77 +511,49 @@ public Action:Timer_KickFakeBot(Handle:timer, any:fakeclient)
 ////////////////////////////////////
 // stocks
 ////////////////////////////////////
-stock TweakSettings()
+stock void TweakSettings()
 {
-	new Handle:hMaxSurvivorsLimitCvar = FindConVar("survivor_limit");
+	Handle hMaxSurvivorsLimitCvar = FindConVar("survivor_limit");
 	SetConVarBounds(hMaxSurvivorsLimitCvar,  ConVarBound_Lower, true, 4.0);
 	SetConVarBounds(hMaxSurvivorsLimitCvar, ConVarBound_Upper, true, 32.0);
-	SetConVarInt(hMaxSurvivorsLimitCvar, GetConVarInt(hMaxSurvivors));
+	SetConVarInt(hMaxSurvivorsLimitCvar, iMaxSurvivors);
 	
 	SetConVarInt(FindConVar("z_spawn_flow_limit"), 50000) ;// allow spawning bots at any time
 }
 
-/*
-stock FindLocationStart()
-{
-new ent;
-decl Float:vecLocation[3];
-
-if(StrContains(gMapName, "m1_", false) != -1)
-{
-// search for a survivor spawnpoint if first map of campaign
-ent = -1;
-while((ent = FindEntityByClassname(ent, "info_survivor_position")) != -1)
-{
-if(IsValidEntity(ent))
-{
-GetEntPropVector(ent, Prop_Send, "m_vecOrigin", vecLocation);
-vecLocationStart = vecLocation;
-break;
-}
-}
-}
-else
-{
-// Search for a locked exit door,
-ent = -1;
-while((ent = FindEntityByClassname(ent, "prop_door_rotating_checkpoint")) != -1)
-{
-if(IsValidEntity(ent))
-{
-if(GetEntProp(ent, Prop_Send, "m_bLocked") == 1)
-{
-GetEntPropVector(ent, Prop_Send, "m_vecOrigin", vecLocation);
-vecLocationStart = vecLocation;
-break;
-}
-}
-}
-}
-}*/
-
-stock TakeOverBot(client)
+stock void TakeOverBot(int client)
 {
 	if (!IsClientInGame(client)) return;
 	if (GetClientTeam(client) == TEAM_SURVIVORS) return;
 	if (IsFakeClient(client)) return;
-	
-	new fakebot = FindBotToTakeOver(true)	;
-	if (fakebot==0)
+
+	int fakebot = FindBotToTakeOver(true);
+	if (fakebot ==0)
 	{
-		PrintHintText(client, "沒有倖存者Bot能取代.");
-		return;
+		fakebot = FindBotToTakeOver(false);
+		if (fakebot ==0 )
+		{
+			PrintHintText(client, "沒有倖存者Bot能取代.");
+			return;
+		}
 	}
 
-	SDKCall(hSetHumanSpec, fakebot, client);
-	SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
-	
+	if(IsPlayerAlive(fakebot))
+	{
+		SDKCall(hSetHumanSpec, fakebot, client);
+		SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
+	}
+	else
+	{
+		FakeClientCommand(client, "jointeam 2");
+	}
+
 	return;
 }
 
-stock FindBotToTakeOver(bool alive)
+stock int FindBotToTakeOver(bool alive)
 {
-	for (new i = 1; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i))
 		{
@@ -538,25 +568,25 @@ stock FindBotToTakeOver(bool alive)
 }
 
 
-stock SetEntityTempHealth(client, hp)
+stock void SetEntityTempHealth(int client, int hp)
 {
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
-	new Float:newOverheal = hp * 1.0; // prevent tag mismatch
+	float newOverheal = hp * 1.0; // prevent tag mismatch
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", newOverheal);
 }
 
-stock BypassAndExecuteCommand(client, String: strCommand[], String: strParam1[])
+stock void BypassAndExecuteCommand(int client, char[] strCommand, char[] strParam1)
 {
-	new flags = GetCommandFlags(strCommand);
+	int flags = GetCommandFlags(strCommand);
 	SetCommandFlags(strCommand, flags & ~FCVAR_CHEAT);
 	FakeClientCommand(client, "%s %s", strCommand, strParam1);
 	SetCommandFlags(strCommand, flags);
 }
 
-stock StripWeapons(client) // strip all items from client
+stock void StripWeapons(int client) // strip all items from client
 {
-	new itemIdx;
-	for (new x = 0; x <= 3; x++)
+	int itemIdx;
+	for (int x = 0; x <= 3; x++)
 	{
 		if((itemIdx = GetPlayerWeaponSlot(client, x)) != -1)
 		{  
@@ -566,7 +596,7 @@ stock StripWeapons(client) // strip all items from client
 	}
 }
 
-stock GiveWeapon(client) // give client random weapon
+stock void GiveWeapon(int client) // give client random weapon
 {
 	switch(GetRandomInt(0,3))
 	{
@@ -578,13 +608,13 @@ stock GiveWeapon(client) // give client random weapon
 	BypassAndExecuteCommand(client, "give", "ammo");
 }
 
-stock GiveMedkit(client)
+stock void GiveMedkit(int client)
 {
-	new ent = GetPlayerWeaponSlot(client, 3);
+	int ent = GetPlayerWeaponSlot(client, 3);
 	if(IsValidEdict(ent))
 	{
-		new String:sClass[128];
-		GetEdictClassname(ent, sClass, sizeof(sClass))
+		char sClass[128];
+		GetEdictClassname(ent, sClass, sizeof(sClass));
 		if(!StrEqual(sClass, "weapon_first_aid_kit", false))
 		{
 			RemovePlayerItem(client, ent);
@@ -598,18 +628,10 @@ stock GiveMedkit(client)
 	}
 }
 
-/*
-stock ForceClientCvars(client)
+stock int TotalSurvivors() // total bots, including players
 {
-ClientCommand(client, "cl_glow_item_far_r 0.0");
-ClientCommand(client, "cl_glow_item_far_g 0.7");
-ClientCommand(client, "cl_glow_item_far_b 0.2");
-}*/
-
-stock TotalSurvivors() // total bots, including players
-{
-	new kk = 0;
-	for (new i = 1; i <= MaxClients; i++)
+	int kk = 0;
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i))
 		{
@@ -620,10 +642,10 @@ stock TotalSurvivors() // total bots, including players
 	return kk;
 }
 
-stock HumanConnected()
+stock int HumanConnected()
 {
-	new kk = 0;
-	for (new i = 1; i <= MaxClients; i++)
+	int kk = 0;
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(bot))
 		{
@@ -634,14 +656,14 @@ stock HumanConnected()
 	return kk;
 }
 
-stock TotalFreeAliveBots() // total bots (excl. IDLE players)
+stock int TotalFreeBots() // total bots (excl. IDLE players)
 {
-	new kk = 0;
-	for(new i = 1; i <= MaxClients; i++)
+	int kk = 0;
+	for(int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(i))
 		{
-			if(IsFakeClient(i) && GetClientTeam(i)==TEAM_SURVIVORS && IsPlayerAlive(i))
+			if(IsFakeClient(i) && GetClientTeam(i)==TEAM_SURVIVORS)
 			{
 				if(!HasIdlePlayer(i))
 					kk++;
@@ -651,13 +673,8 @@ stock TotalFreeAliveBots() // total bots (excl. IDLE players)
 	return kk;
 }
 
-stock StopTimers()
+stock void StopTimers()
 {
-	if(timer_SpawnTick != INVALID_HANDLE)
-	{
-		KillTimer(timer_SpawnTick);
-		timer_SpawnTick = INVALID_HANDLE;
-	}	
 	if(timer_SpecCheck != INVALID_HANDLE)
 	{
 		KillTimer(timer_SpecCheck);
@@ -667,44 +684,12 @@ stock StopTimers()
 ////////////////////////////////////
 // bools
 ////////////////////////////////////
-bool:SpawnFakeClient()
+bool SpawnFakeClient()
 {
-	new bool:fakeclientKicked = false;
+	bool fakeclientKicked = false;
 	
 	// create fakeclient
-	new fakeclient = 0;
-	fakeclient = CreateFakeClient("FakeClient");
-	
-	// if entity is valid
-	if(fakeclient != 0)
-	{
-		// move into survivor team
-		ChangeClientTeam(fakeclient, TEAM_SURVIVORS);
-		
-		// check if entity classname is survivorbot
-		if(DispatchKeyValue(fakeclient, "classname", "survivorbot") == true)
-		{
-			// spawn the client
-			if(DispatchSpawn(fakeclient) == true)
-			{	
-				// kick the fake client to make the bot take over
-				CreateTimer(DELAY_KICK_FAKECLIENT, Timer_KickFakeBot, fakeclient, TIMER_REPEAT);
-				fakeclientKicked = true;
-			}
-		}			
-		// if something went wrong, kick the created FakeClient
-		if(fakeclientKicked == false)
-			KickClient(fakeclient, "Kicking FakeClient");
-	}	
-	return fakeclientKicked;
-}
-
-bool:SpawnFakeClientAndTeleport()
-{
-	new bool:fakeclientKicked = false;
-	
-	// create fakeclient
-	new fakeclient = CreateFakeClient("FakeClient");
+	int fakeclient = CreateFakeClient("FakeClient");
 	
 	// if entity is valid
 	if(fakeclient != 0)
@@ -718,29 +703,33 @@ bool:SpawnFakeClientAndTeleport()
 			// spawn the client
 			if(DispatchSpawn(fakeclient) == true)
 			{
-				// teleport client to the position of any active alive player
-				for (new i = 1; i <= MaxClients; i++)
+				if(bKill) ForcePlayerSuicide(fakeclient);
+				else
 				{
-					if(IsClientInGame(i) && (GetClientTeam(i) == TEAM_SURVIVORS) && IsAlive(i) && i != fakeclient)
-					{						
-						// get the position coordinates of any active alive player
-						new Float:teleportOrigin[3];
-						GetClientAbsOrigin(i, teleportOrigin)	;			
-						TeleportEntity(fakeclient, teleportOrigin, NULL_VECTOR, NULL_VECTOR);						
-						break;
+					// teleport client to the position of any active alive player
+					for (int i = 1; i <= MaxClients; i++)
+					{
+						if(IsClientInGame(i) && (GetClientTeam(i) == TEAM_SURVIVORS) && IsAlive(i) && i != fakeclient)
+						{						
+							// get the position coordinates of any active alive player
+							float teleportOrigin[3];
+							GetClientAbsOrigin(i, teleportOrigin)	;			
+							TeleportEntity(fakeclient, teleportOrigin, NULL_VECTOR, NULL_VECTOR);						
+							break;
+						}
 					}
+					
+					StripWeapons(fakeclient);
+					//BypassAndExecuteCommand(fakeclient, "give", "pistol_magnum");
+					if(StrContains(gMapName, "c1m1_hotel", false) == -1)
+						GiveWeapon(fakeclient);
 				}
-				
-				StripWeapons(fakeclient);
-				//BypassAndExecuteCommand(fakeclient, "give", "pistol_magnum");
-				if(StrContains(gMapName, "c1m1_hotel", false) == -1)
-					GiveWeapon(fakeclient);
-				
 				// kick the fake client to make the bot take over
 				CreateTimer(DELAY_KICK_FAKECLIENT, Timer_KickFakeBot, fakeclient, TIMER_REPEAT);
 				fakeclientKicked = true;
 			}
-		}			
+		}	
+
 		// if something went wrong, kick the created FakeClient
 		if(fakeclientKicked == false)
 			KickClient(fakeclient, "Kicking FakeClient");
@@ -748,13 +737,13 @@ bool:SpawnFakeClientAndTeleport()
 	return fakeclientKicked;
 }
 
-bool:HasIdlePlayer(bot)
+bool HasIdlePlayer(int bot)
 {
 	if(IsClientConnected(bot) && IsClientInGame(bot) && IsFakeClient(bot) && GetClientTeam(bot) == 2 && IsAlive(bot))
 	{
 		if(HasEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))
 		{
-			new client = GetClientOfUserId(GetEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))	;		
+			int client = GetClientOfUserId(GetEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))	;		
 			if(client > 0 && client <= MaxClients && IsClientInGame(client) && !IsFakeClient(client) && IsClientObserver(client))
 			{
 				return true;
@@ -764,12 +753,12 @@ bool:HasIdlePlayer(bot)
 	return false;
 }
 
-bool:IsClientIdle(client)
+bool IsClientIdle(int client)
 {
 	if(GetClientTeam(client) != 1)
 		return false;
 	
-	for(new i = 1; i <= MaxClients; i++)
+	for(int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(i) && IsFakeClient(i) && GetClientTeam(i) == TEAM_SURVIVORS && IsAlive(i))
 		{
@@ -783,29 +772,10 @@ bool:IsClientIdle(client)
 	return false;
 }
 
-bool:IsAlive(client)
+bool IsAlive(int client)
 {
 	if(!GetEntProp(client, Prop_Send, "m_lifeState"))
 		return true;
 	
 	return false;
 }
-
-/*
-bool:IsNobodyAtStart()
-{
-for(new i = 1; i <= MaxClients; i++)
-{
-if(IsClientConnected(i) && IsClientInGame(i))
-{
-if((GetClientTeam(i) == TEAM_SURVIVORS) && !IsFakeClient(i) && IsAlive(i))
-{
-decl Float:vecLocationPlayer[3];
-GetClientAbsOrigin(i, vecLocationPlayer);
-if(GetVectorDistance(vecLocationStart, vecLocationPlayer, false) < 750)
-	return false;
-}
-}
-}
-return true;
-}*/

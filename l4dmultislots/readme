@@ -1,11 +1,23 @@
 Allows additional survivor players in coop, versus, and survival
 
 -Require-
-You still need to use l4dtoolz or left4downtown or l4dhooks to unlock survivor limit
+You still need to use l4dtoolz or left4downtown or l4dhooks to unlock server slots limit
 
 -Convars-
-"l4d_multislots_max_survivors", "4", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)"
+// Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)
+// -
+// Default: "4"
+// Minimum: "4.000000"
+// Maximum: "32.000000"
+l4d_multislots_max_survivors "4"
+
+// Spawn a dead survivor bot after a certain time after round starts [0: Permanent]
+// -
+// Default: "100"
+// Minimum: "0.000000"
+l4d_multislots_time "100"
+
 
 -Command-
 (spec only) "sm_join", "Attempt to join Survivors"
-(adm only) "sm_muladdbot", "Attempt to add and teleport a survivor bot"
+(adm only) "sm_muladdbot", "Attempt to add a survivor bot"
