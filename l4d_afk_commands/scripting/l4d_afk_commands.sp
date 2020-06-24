@@ -615,20 +615,11 @@ public Action TurnClientToInfected(int client, int args)
 	
 public Action Survivor_Take_Control(Handle timer, int client)
 {
-		int localClientTeam = GetClientTeam(client);
-		char command[] = "sb_takecontrol";
-		int flags = GetCommandFlags(command);
-		SetCommandFlags(command, flags & ~FCVAR_CHEAT);
-		char botNames[][] = { "teengirl", "manager", "namvet", "biker" ,"coach","gambler","mechanic","producer"};
-		
-		int i = 0;
-		while((localClientTeam != 2) && i < 8)
-		{
-			FakeClientCommand(client, "sb_takecontrol %s", botNames[i]);
-			localClientTeam = GetClientTeam(client);
-			i++;
-		}
-		SetCommandFlags(command, flags);
+	char command[] = "sb_takecontrol";
+	int flags = GetCommandFlags(command);
+	SetCommandFlags(command, flags & ~FCVAR_CHEAT);
+	FakeClientCommand(client, "sb_takecontrol");
+	SetCommandFlags(command, flags);
 }
 
 stock int GetTeamMaxSlots(int team)
@@ -828,6 +819,7 @@ public Action TakeOverBot(Handle timer, int client)
 	{
 		CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 	}
+	
 	return;
 }
 

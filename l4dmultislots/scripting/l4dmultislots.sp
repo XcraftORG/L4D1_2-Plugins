@@ -118,6 +118,8 @@ public void OnPluginStart()
 		SetFailState("Cant initialize SetHumanSpec SDKCall");
 		return;
 	}
+
+	
 	delete hGameConf;
 }
 
@@ -545,7 +547,7 @@ stock void TakeOverBot(int client)
 	}
 	else
 	{
-		FakeClientCommand(client, "jointeam 2");
+		CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 	}
 
 	return;
@@ -778,4 +780,13 @@ bool IsAlive(int client)
 		return true;
 	
 	return false;
+}
+
+public Action Survivor_Take_Control(Handle timer, int client)
+{
+	char command[] = "sb_takecontrol";
+	int flags = GetCommandFlags(command);
+	SetCommandFlags(command, flags & ~FCVAR_CHEAT);
+	FakeClientCommand(client, "sb_takecontrol");
+	SetCommandFlags(command, flags);
 }
