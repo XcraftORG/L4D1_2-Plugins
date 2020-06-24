@@ -4,7 +4,7 @@ Allows additional survivor players in coop, versus, and survival
 You still need to use l4dtoolz or left4downtown or l4dhooks to unlock survivor limit
 
 -Convars-
-"l4d_multislots_max_survivors", "8", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)"
+"l4d_multislots_max_survivors", "4", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)"
 
 -Command-
 (spec only) "sm_join", "Attempt to join Survivors"

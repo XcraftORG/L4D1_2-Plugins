@@ -67,7 +67,7 @@ public OnPluginStart()
 	RegConsoleCmd("sm_join", JoinTeam, "Attempt to join Survivors");
 	
 	// Register cvars
-	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "8", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)", CVAR_FLAGS, true, 4.0, true, 32.0);
+	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "4", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)", CVAR_FLAGS, true, 4.0, true, 32.0);
 	
 	// Hook events
 	HookEvent("item_pickup", evtRoundStartAndItemPickup);
@@ -721,7 +721,7 @@ bool:SpawnFakeClientAndTeleport()
 				// teleport client to the position of any active alive player
 				for (new i = 1; i <= MaxClients; i++)
 				{
-					if(IsClientInGame(i) && (GetClientTeam(i) == TEAM_SURVIVORS) && !IsFakeClient(i) && IsAlive(i) && i != fakeclient)
+					if(IsClientInGame(i) && (GetClientTeam(i) == TEAM_SURVIVORS) && IsAlive(i) && i != fakeclient)
 					{						
 						// get the position coordinates of any active alive player
 						new Float:teleportOrigin[3];
