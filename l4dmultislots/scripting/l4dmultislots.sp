@@ -1,13 +1,10 @@
 /************************************************
 * Plugin name:		[L4D(2)] MultiSlots
-* Plugin author:	SwiftReal
+* Plugin author:	SwiftReal, Harry Potter
 * 
 * Based upon:
 * - (L4D) Zombie Havoc by Bigbuck
 * - (L4D2) Bebop by frool
-* 
-* Version 1.0
-* 		- Initial Release
 ************************************************/
 
 #include <sourcemod>
@@ -15,7 +12,7 @@
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
-#define PLUGIN_VERSION 				"1.6"
+#define PLUGIN_VERSION 				"1.7"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -197,7 +194,7 @@ public Action JoinTeam(int client,int args)
 	{	
 		if(DispatchKeyValue(client, "classname", "player") == true)
 		{
-			//PrintHintText(client, "You are allready joined the Survivor team");
+			PrintHintText(client, "You are allready joined the Survivor team, dumb fuck");
 		}
 		else if((DispatchKeyValue(client, "classname", "info_survivor_position") == true) && !IsAlive(client))
 		{
@@ -210,11 +207,18 @@ public Action JoinTeam(int client,int args)
 	}
 	else
 	{			
-		if(TotalFreeBots() == 0)
+		if(TotalAliveFreeBots() == 0)
 		{
-			SpawnFakeClient();
-			
-			CreateTimer(1.0, Timer_AutoJoinTeam, client, TIMER_REPEAT)	;			
+			if(bKill) 
+			{
+				ChangeClientTeam(client, TEAM_SURVIVORS);
+				CreateTimer(0.1, Timer_KillSurvivor, client);
+			}
+			else 
+			{
+				SpawnFakeClient();
+				CreateTimer(1.0, Timer_AutoJoinTeam, client, TIMER_REPEAT)	;			
+			}
 		}
 		else
 			TakeOverBot(client);
@@ -329,7 +333,7 @@ public void evtSurvivorRescued(Event event, const char[] name, bool dontBroadcas
 	{	
 		StripWeapons(client);
 		//BypassAndExecuteCommand(client, "give", "pistol_magnum");
-		if(StrContains(gMapName, "c1m1", false) == -1)
+		if(StrContains(gMapName, "c1m1_hotel", false) == -1)
 			GiveWeapon(client);
 	}
 }
@@ -458,6 +462,14 @@ public Action Timer_SpecCheck(Handle timer)
 	return Plugin_Continue;
 }
 
+public Action Timer_KillSurvivor(Handle timer, int client)
+{
+	if(client && IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client))
+	{
+		ForcePlayerSuicide(client);
+	}
+}
+
 public Action Timer_AutoJoinTeam(Handle timer, int client)
 {
 	if(!IsClientConnected(client))
@@ -533,21 +545,14 @@ stock void TakeOverBot(int client)
 	if (fakebot ==0)
 	{
 		fakebot = FindBotToTakeOver(false);
-		if (fakebot ==0 )
-		{
-			PrintHintText(client, "沒有倖存者Bot能取代.");
-			return;
-		}
+		PrintHintText(client, "沒有倖存者Bot能取代.");
+		return;
 	}
 
 	if(IsPlayerAlive(fakebot))
 	{
 		SDKCall(hSetHumanSpec, fakebot, client);
 		SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
-	}
-	else
-	{
-		CreateTimer(0.1, Survivor_Take_Control, client, TIMER_FLAG_NO_MAPCHANGE);
 	}
 
 	return;
@@ -658,14 +663,14 @@ stock int HumanConnected()
 	return kk;
 }
 
-stock int TotalFreeBots() // total bots (excl. IDLE players)
+stock int TotalAliveFreeBots() // total bots (excl. IDLE players)
 {
 	int kk = 0;
 	for(int i = 1; i <= MaxClients; i++)
 	{
 		if(IsClientConnected(i) && IsClientInGame(i))
 		{
-			if(IsFakeClient(i) && GetClientTeam(i)==TEAM_SURVIVORS)
+			if(IsFakeClient(i) && GetClientTeam(i)==TEAM_SURVIVORS && IsAlive(i))
 			{
 				if(!HasIdlePlayer(i))
 					kk++;
@@ -705,27 +710,24 @@ bool SpawnFakeClient()
 			// spawn the client
 			if(DispatchSpawn(fakeclient) == true)
 			{
-				if(bKill) ForcePlayerSuicide(fakeclient);
-				else
+				// teleport client to the position of any active alive player
+				for (int i = 1; i <= MaxClients; i++)
 				{
-					// teleport client to the position of any active alive player
-					for (int i = 1; i <= MaxClients; i++)
-					{
-						if(IsClientInGame(i) && (GetClientTeam(i) == TEAM_SURVIVORS) && IsAlive(i) && i != fakeclient)
-						{						
-							// get the position coordinates of any active alive player
-							float teleportOrigin[3];
-							GetClientAbsOrigin(i, teleportOrigin)	;			
-							TeleportEntity(fakeclient, teleportOrigin, NULL_VECTOR, NULL_VECTOR);						
-							break;
-						}
+					if(IsClientInGame(i) && (GetClientTeam(i) == TEAM_SURVIVORS) && IsAlive(i) && i != fakeclient)
+					{						
+						// get the position coordinates of any active alive player
+						float teleportOrigin[3];
+						GetClientAbsOrigin(i, teleportOrigin)	;			
+						TeleportEntity(fakeclient, teleportOrigin, NULL_VECTOR, NULL_VECTOR);						
+						break;
 					}
-					
-					StripWeapons(fakeclient);
-					//BypassAndExecuteCommand(fakeclient, "give", "pistol_magnum");
-					if(StrContains(gMapName, "c1m1_hotel", false) == -1)
-						GiveWeapon(fakeclient);
 				}
+				
+				StripWeapons(fakeclient);
+				//BypassAndExecuteCommand(fakeclient, "give", "pistol_magnum");
+				if(StrContains(gMapName, "c1m1_hotel", false) == -1)
+					GiveWeapon(fakeclient);
+
 				// kick the fake client to make the bot take over
 				CreateTimer(DELAY_KICK_FAKECLIENT, Timer_KickFakeBot, fakeclient, TIMER_REPEAT);
 				fakeclientKicked = true;
@@ -780,13 +782,4 @@ bool IsAlive(int client)
 		return true;
 	
 	return false;
-}
-
-public Action Survivor_Take_Control(Handle timer, int client)
-{
-	char command[] = "sb_takecontrol";
-	int flags = GetCommandFlags(command);
-	SetCommandFlags(command, flags & ~FCVAR_CHEAT);
-	FakeClientCommand(client, "sb_takecontrol");
-	SetCommandFlags(command, flags);
 }
