@@ -1,6 +1,6 @@
 /********************************************************************************************
 * Plugin	: L4DVSAutoSpectateOnAFK
-* Version	: 1.6
+* Version	: 1.7
 * Game		: Left 4 Dead 
 * Author	: djromero (SkyDavid, David) & Harry
 * Testers	: Myself
@@ -13,7 +13,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdktools_functions>
-#define PLUGIN_VERSION "1.6"
+#define PLUGIN_VERSION "1.7"
 
 
 // For cvars
@@ -44,6 +44,7 @@ new Float:afkPlayerLastPos[MAXPLAYERS + 1][3];
 new Float:afkPlayerLastEyes[MAXPLAYERS + 1][3];
 new bool:LeavedSafeRoom;
 new bool:PlayerJustConnected[MAXPLAYERS + 1];
+int g_iPlayerSpawn, g_iRoundStart
 
 public Plugin:myinfo = 
 {
@@ -98,6 +99,7 @@ public OnPluginStart()
 	HookEvent("finale_vehicle_leaving", Event_RoundEnd, EventHookMode_Pre);
 	HookEvent("mission_lost", Event_RoundEnd);
 	HookEvent("map_transition", Event_RoundEnd, EventHookMode_Pre);
+	HookEvent("player_spawn",		Event_PlayerSpawn,	EventHookMode_PostNoCopy);
 
 	// Afk manager time limits
 	h_AfkWarnSpecTime = CreateConVar("l4d_specafk_warnspectime", "20", "Warn time before spec", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
@@ -159,10 +161,12 @@ public OnMapStart()
 	// We read all the cvars
 	ReadCvars();
 }
+
 public OnMapEnd()
 {
 	afkManager_Stop();
 }
+
 public OnClientPutInServer(client)
 {
 	// If players already leaved safe room we mark the player as just connected ...
@@ -225,17 +229,31 @@ public Action:Command_Say(client, args)
 
 public Action:Event_RoundStart (Handle:event, const String:name[], bool:dontBroadcast)
 {
-	// reset some variables
+
 	LeavedSafeRoom = false;
-	CreateTimer(1.0, PlayerLeftStart, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+	afkManager_Stop();
+	if( g_iPlayerSpawn == 1 && g_iRoundStart == 0 )
+		CreateTimer(3.0, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
+	g_iRoundStart = 1;
 	
+	return Plugin_Continue;
+}
+
+public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	if( g_iPlayerSpawn == 0 && g_iRoundStart == 1 )
+		CreateTimer(0.5, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
+	g_iPlayerSpawn = 1;
+}
+
+public Action tmrStart(Handle timer)
+{
 	// We start the AFK manager
 	if(!afkManager_Active)
 	{
+		CreateTimer(1.0, PlayerLeftStart, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
 		afkManager_Start();
 	}
-	
-	return Plugin_Continue;
 }
 
 
@@ -336,6 +354,14 @@ public Action:afkChangedTeam (Handle:event, const String:name[], bool:dontBroadc
 {
 	// we get the victim
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	CreateTimer(0.5, ClientReallyChangeTeam, victim, _); // check delay
+	return Plugin_Continue;
+}
+
+public Action ClientReallyChangeTeam(Handle timer, int victim)
+{
+	if( !victim || victim > MaxClients || !IsClientInGame(victim)||IsFakeClient(victim)) return Plugin_Continue;
+
 	if (victim > 0)
 	{
 		if (IsClientConnected(victim)&&(!IsFakeClient(victim)))
@@ -359,7 +385,6 @@ public Action:afkChangedTeam (Handle:event, const String:name[], bool:dontBroadc
 			afkPlayerTrapped[victim] = false;
 		}
 	}
-	
 	return Plugin_Continue;
 }
 
@@ -372,7 +397,7 @@ public Action:afkJoinHint (Handle:Timer, any:client)
 		if (GetClientTeam(client) == 1)
 		{
 			// We send him a hint text ...
-			PrintHintText(client, "按 M 或是輸入 !sur/!inf 加入遊戲...");
+			PrintHintText(client, "輸入 !join 加入遊戲...");
 			
 			// and setup another timer to tell him later ....
 			CreateTimer(5.0, afkJoinHint, client);
@@ -506,7 +531,7 @@ public Action:afkCheckThread(Handle:timer)
 									}
 								}
 								else // we just warn him ...
-								PrintHintText(i, "[AFK] 偵測閒置! 你將於 %i 秒後強制旁觀.", afkPlayerTimeLeftAction[i]);
+									PrintHintText(i, "[AFK] 偵測閒置! 你將於 %i 秒後強制旁觀.", afkPlayerTimeLeftAction[i]);
 								
 							}
 						} // player is not trapped
@@ -541,7 +566,7 @@ public Action:afkCheckThread(Handle:timer)
 						if (afkPlayerTimeLeftWarn[i] <= 0)
 						{
 							// We warn the player ....
-							PrintHintText(i, "[AFK] 偵測閒置! 你將於 %i 秒後踢出伺服器.", afkPlayerTimeLeftAction[i]);
+							PrintHintText(i, "[AFK] 偵測旁觀閒置! 輸入!join加入遊戲\n 否則你將於 %i 秒後踢出伺服器.", afkPlayerTimeLeftAction[i]);
 						}
 					}
 					else // player warn timeout reached ...
@@ -560,11 +585,11 @@ public Action:afkCheckThread(Handle:timer)
 							}
 							else // We warn him that he will be kicked ...
 							{
-								PrintHintText(i, "[AFK] 偵測閒置! 一旦有人離開安全區域你將踢出伺服器.");
+								PrintHintText(i, "[AFK] 偵測旁觀閒置! 輸入!join加入遊戲\n 一旦有人離開安全區域你將踢出伺服器.");
 							}
 						}
 						else // we just warn him ...
-						PrintHintText(i, "[AFK] 偵測閒置! 你將於 %i 秒後踢出伺服器.", afkPlayerTimeLeftAction[i]);
+							PrintHintText(i, "[AFK] 偵測旁觀閒置! 輸入!join加入遊戲\n 否則你將於 %i 秒後踢出伺服器.", afkPlayerTimeLeftAction[i]);
 						
 					}			
 				} // player is not admin
@@ -612,7 +637,7 @@ afkForceSpectate (client, bool:advertise, bool:self)
 	}
 	
 	// We send him a hint text ...
-	PrintHintText(client, "按 M 或是輸入 !sur/!inf 加入遊戲...");
+	PrintHintText(client, "輸入!join加入遊戲...");
 	
 	// We send him a hint message 5 seconds later, in case he hasn't joined any team
 	CreateTimer(5.0, afkJoinHint, client);
@@ -664,7 +689,7 @@ afkKickClient (client)
 	new String:PlayerName[200];
 	GetClientName(client, PlayerName, sizeof(PlayerName));
 	
-	PrintToChatAll("\x01\x04[TS] \x03%s \x01閒置太久被踢出伺服器.", PlayerName);
+	PrintToChatAll("\x01\x04[TS] \x03%s \x01旁觀閒置太久被踢出伺服器.", PlayerName);
 }
 
 
