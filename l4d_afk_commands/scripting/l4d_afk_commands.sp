@@ -683,11 +683,11 @@ public Action WTF(int client, int args) //玩家press m
 		return Plugin_Handled;
 	}
 	bool bIsAdm = IsPlayerGenericAdmin(client);
-	if(bAdmOnly && !bIsAdm)
-	{
-		ReplyToCommand(client, "You don't have access to change team");
-		return Plugin_Handled;
-	}
+	//if(bAdmOnly && !bIsAdm)
+	//{
+	//	ReplyToCommand(client, "You don't have access to change team");
+	//	return Plugin_Handled;
+	//}
 	if(!CanClientChangeTeam(client,5,bIsAdm)) return Plugin_Handled;
 	
 	if(args == 2)
@@ -747,11 +747,11 @@ public Action WTF2(int client, int args)
 		return Plugin_Handled;
 	}
 	bool bIsAdm = IsPlayerGenericAdmin(client);
-	if(bAdmOnly && !bIsAdm)
-	{
-		ReplyToCommand(client, "You don't have access to change team");
-		return Plugin_Handled;
-	}
+	//if(bAdmOnly && !bIsAdm)
+	//{
+	//	ReplyToCommand(client, "You don't have access to change team");
+	//	return Plugin_Handled;
+	//}
 	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
 		PrintHintText(client, "[TS] 走開!! 特感玩家無法閒置!.");
