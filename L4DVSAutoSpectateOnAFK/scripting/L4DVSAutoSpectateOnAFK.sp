@@ -1,6 +1,6 @@
 /********************************************************************************************
 * Plugin	: L4DVSAutoSpectateOnAFK
-* Version	: 1.7
+* Version	: 1.8
 * Game		: Left 4 Dead 
 * Author	: djromero (SkyDavid, David) & Harry
 * Testers	: Myself
@@ -13,7 +13,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdktools_functions>
-#define PLUGIN_VERSION "1.7"
+#define PLUGIN_VERSION "1.8"
 
 
 // For cvars
@@ -39,12 +39,12 @@ new bool:afkShowTeamPanel;
 new bool:afkManager_Active = false;
 new afkPlayerTimeLeftWarn[MAXPLAYERS + 1];
 new afkPlayerTimeLeftAction[MAXPLAYERS + 1];
-new afkPlayerTrapped[MAXPLAYERS + 1];
 new Float:afkPlayerLastPos[MAXPLAYERS + 1][3];
 new Float:afkPlayerLastEyes[MAXPLAYERS + 1][3];
-new bool:LeavedSafeRoom;
+new bool:LeavedSafeRoom
+new bool:L4D2Version;
 new bool:PlayerJustConnected[MAXPLAYERS + 1];
-int g_iPlayerSpawn, g_iRoundStart
+int g_iPlayerSpawn, g_iRoundStart;
 
 public Plugin:myinfo = 
 {
@@ -53,6 +53,22 @@ public Plugin:myinfo =
 	description = "Auto-spectate for AFK players on VS mode",
 	version = PLUGIN_VERSION,
 	url = "www.sky.zebgames.com"
+}
+
+public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+{
+	// Checks to see if the game is a L4D game. If it is, check if its the sequel. L4DVersion is L4D if false, L4D2 if true.
+	EngineVersion test = GetEngineVersion();
+	if( test == Engine_Left4Dead)
+		L4D2Version = false;
+	else if (test == Engine_Left4Dead2 )
+		L4D2Version = true;
+	else
+	{
+		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
+		return APLRes_SilentFailure;
+	}
+	return APLRes_Success;
 }
 
 public OnPluginStart()
@@ -73,25 +89,6 @@ public OnPluginStart()
 	HookEvent("player_jump", afkPlayerAction);
 	HookEvent("player_hurt", afkPlayerAction);
 	HookEvent("player_hurt_concise", afkPlayerAction);
-	
-	// incapacitated
-	HookEvent("player_incapacitated", afkEventIncap);
-	HookEvent("player_ledge_grab", afkEventIncap);
-	HookEvent("revive_success", afkEventRevived);
-	
-	// checkpoints
-	HookEvent("player_entered_checkpoint", afkEventStartCheck);
-	HookEvent("player_left_checkpoint", afkEventStopCheck);
-	
-	// tounge & choke
-	HookEvent("tongue_grab", afkEventStartGrab);
-	HookEvent("choke_start", afkEventStartGrab);
-	HookEvent("tongue_release", afkEventStopGrab);
-	
-	// pounced
-	HookEvent("lunge_pounce", afkEventStartGrab);
-	HookEvent("pounce_end", afkEventStopGrab);
-	HookEvent("pounce_stopped", afkEventStopGrab);
 	
 	// For roundstart and roundend..
 	HookEvent("round_start", Event_RoundStart, EventHookMode_Post);
@@ -169,11 +166,18 @@ public OnMapEnd()
 
 public OnClientPutInServer(client)
 {
+	PlayerJustConnected[client] = false;
+	afkResetTimers(client);
+}
+
+public bool:OnClientConnect(int client)
+{
 	// If players already leaved safe room we mark the player as just connected ...
-	if (LeavedSafeRoom)
-		PlayerJustConnected[client] = true;
-	else
-	PlayerJustConnected[client] = false; // it just connected, but we don't care right now ...
+	PlayerJustConnected[client] = true;
+
+	afkPlayerTimeLeftWarn[client] = 1000;
+	afkPlayerTimeLeftAction[client] = 1000;	
+	return true;
 }
 
 public IsValidClient (client)
@@ -264,67 +268,6 @@ public Action:Event_RoundEnd (Handle:event, const String:name[], bool:dontBroadc
 	afkManager_Stop();
 }
 
-public Action:afkEventStartGrab (Handle:event, const String:name[], bool:dontBroadcast)
-{
-	// gets the id
-	new id = GetClientOfUserId(GetEventInt(event, "victim"));
-	
-	// mark as incapacitated
-	if (id > 0)
-		afkPlayerTrapped[id] = true;
-}
-
-public Action:afkEventStopGrab (Handle:event, const String:name[], bool:dontBroadcast)
-{
-	// gets the id
-	new id = GetClientOfUserId(GetEventInt(event, "victim"));
-	
-	// mark as incapacitated
-	if (id > 0)
-		afkPlayerTrapped[id] = false;
-}
-
-
-public Action:afkEventStartCheck (Handle:event, const String:name[], bool:dontBroadcast)
-{
-	// gets the id
-	new id = GetClientOfUserId(GetEventInt(event, "userid"));
-	
-	// mark as incapacitated
-	if (id > 0)
-		afkPlayerTrapped[id] = true;
-}
-
-public Action:afkEventStopCheck (Handle:event, const String:name[], bool:dontBroadcast)
-{
-	// gets the id
-	new id = GetClientOfUserId(GetEventInt(event, "userid"));
-	
-	// mark as incapacitated
-	if (id > 0)
-		afkPlayerTrapped[id] = false;
-}
-
-public Action:afkEventIncap (Handle:event, const String:name[], bool:dontBroadcast)
-{
-	// gets the id
-	new id = GetClientOfUserId(GetEventInt(event, "userid"));
-	
-	// mark as incapacitated
-	if (id > 0)
-		afkPlayerTrapped[id] = true;
-}
-
-public Action:afkEventRevived (Handle:event, const String:name[], bool:dontBroadcast)
-{
-	// gets the id
-	new id = GetClientOfUserId(GetEventInt(event, "subject"));
-	
-	// mark as incapacitated
-	if (id > 0)
-		afkPlayerTrapped[id] = false;
-}
-
 
 public Action:afkPlayerAction (Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -382,7 +325,6 @@ public Action ClientReallyChangeTeam(Handle timer, int victim)
 			
 			// Reset his afk status
 			afkResetTimers(victim);
-			afkPlayerTrapped[victim] = false;
 		}
 	}
 	return Plugin_Continue;
@@ -404,7 +346,6 @@ public Action:afkJoinHint (Handle:Timer, any:client)
 		}
 	}
 }
-
 
 afkResetTimers (client)
 {
@@ -436,7 +377,7 @@ afkResetTimers (client)
 	}
 	
 	// if player is already connected ....
-	if (IsClientConnected(client) && (!IsFakeClient(client)) && IsClientInGame(client))
+	if (IsClientConnected(client) && !IsFakeClient(client) && IsClientInGame(client))
 	{
 		GetClientAbsOrigin(client, afkPlayerLastPos[client]);
 		GetClientEyeAngles(client, afkPlayerLastEyes[client]);
@@ -453,7 +394,6 @@ afkManager_Start()
 	for (i=1;i<=MAXPLAYERS;i++)
 	{
 		afkResetTimers(i);
-		afkPlayerTrapped[i] = false; // we mark the player as not trapped
 	}
 	
 	// we start the check thread ....
@@ -490,7 +430,7 @@ public Action:afkCheckThread(Handle:timer)
 					if ((pos[0] == afkPlayerLastPos[i][0])&&(pos[1] == afkPlayerLastPos[i][1])&&(pos[2] == afkPlayerLastPos[i][2])&&(eyes[0] == afkPlayerLastEyes[i][0])&&(eyes[1] == afkPlayerLastEyes[i][1])&&(eyes[2] == afkPlayerLastEyes[i][2]))
 					{
 						// if the player is not trapped (incapacitated, pounced, etc)
-						if (!afkPlayerTrapped[i])
+						if (L4D2_GetInfectedAttacker(i) == -1)
 						{
 							// If player has not been warned ...
 							if (afkPlayerTimeLeftWarn[i] > 0) // warn time ...
@@ -542,8 +482,6 @@ public Action:afkCheckThread(Handle:timer)
 					} // player hasn't moved ...
 					else // player moved ...
 					{
-						// player is not trapped then ...
-						afkPlayerTrapped[i] = false;
 						
 						// we reset his timers
 						afkResetTimers(i);
@@ -740,6 +678,49 @@ bool LeftStartArea()
 	return false;
 }
 
+
+stock int L4D2_GetInfectedAttacker(int client)
+{
+	int attacker;
+
+	if(L4D2Version)
+	{
+		/* Charger */
+		attacker = GetEntPropEnt(client, Prop_Send, "m_pummelAttacker");
+		if (attacker > 0)
+		{
+			return attacker;
+		}
+
+		attacker = GetEntPropEnt(client, Prop_Send, "m_carryAttacker");
+		if (attacker > 0)
+		{
+			return attacker;
+		}
+		/* Jockey */
+		attacker = GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker");
+		if (attacker > 0)
+		{
+			return attacker;
+		}
+	}
+
+	/* Hunter */
+	attacker = GetEntPropEnt(client, Prop_Send, "m_pounceAttacker");
+	if (attacker > 0)
+	{
+		return attacker;
+	}
+
+	/* Smoker */
+	attacker = GetEntPropEnt(client, Prop_Send, "m_tongueOwner");
+	if (attacker > 0)
+	{
+		return attacker;
+	}
+
+	return -1;
+}
 /////////////////
 ///////////////////
 /////

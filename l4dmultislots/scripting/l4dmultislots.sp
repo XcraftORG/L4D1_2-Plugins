@@ -12,7 +12,7 @@
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
-#define PLUGIN_VERSION 				"1.7"
+#define PLUGIN_VERSION 				"1.8"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -186,9 +186,15 @@ public Action AddBot(int client, int args)
 
 public Action JoinTeam(int client,int args)
 {
-	if(!IsClientConnected(client) || !IsClientInGame(client) || GetClientTeam(client) == 3)
+	if(!IsClientConnected(client) || !IsClientInGame(client))
 		return Plugin_Handled;
-	
+
+	if(GetClientTeam(client) == TEAM_INFECTED)
+	{
+		ChangeClientTeam(client, TEAM_SPECTATORS);
+		CreateTimer(1.0, Timer_AutoJoinTeam, client)	;	
+		return Plugin_Handled;
+	}
 
 	if(GetClientTeam(client) == TEAM_SURVIVORS)
 	{	
