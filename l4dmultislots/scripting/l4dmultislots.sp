@@ -66,6 +66,7 @@ public void OnPluginStart()
 	// Register commands
 	RegAdminCmd("sm_muladdbot", AddBot, ADMFLAG_KICK, "Attempt to add a survivor bot");
 	RegConsoleCmd("sm_join", JoinTeam, "Attempt to join Survivors");
+	RegConsoleCmd("sm_js", JoinTeam, "Attempt to join Survivors");
 	
 	// Register cvars
 	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "4", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)", CVAR_FLAGS, true, 4.0, true, 32.0);

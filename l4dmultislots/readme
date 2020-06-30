@@ -18,6 +18,10 @@ l4d_multislots_max_survivors "4"
 l4d_multislots_time "100"
 
 
--Command-
-(spec only) "sm_join", "Attempt to join Survivors"
-(adm only) "sm_muladdbot", "Attempt to add a survivor bot"
+-Commands-
+**Attempt to join Survivors
+	sm_join
+	sm_js
+	
+**Attempt to add a survivor bot(adm only)
+	sm_muladdbot
