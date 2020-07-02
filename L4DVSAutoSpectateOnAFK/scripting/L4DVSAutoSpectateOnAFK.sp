@@ -143,14 +143,14 @@ public void OnPluginEnd()
 public void ReadCvars()
 {
 	// first we read all the variables ...
-	afkWarnSpecTime = GetConVarInt(h_AfkWarnSpecTime);
-	afkSpecTime = GetConVarInt(h_AfkSpecTime);
-	afkWarnKickTime = GetConVarInt(h_AfkWarnKickTime);
-	afkKickTime = GetConVarInt(h_AfkKickTime);
-	afkCheckInterval = GetConVarInt(h_AfkCheckInterval);
-	afkKickEnabled = GetConVarBool(h_AfkKickEnabled);
-	afkSpecOnConnect = GetConVarBool(h_AfkSpecOnConnect);
-	afkShowTeamPanel = GetConVarBool(h_AfkShowTeamPanel);
+	afkWarnSpecTime = h_AfkWarnSpecTime.IntValue;
+	afkSpecTime = h_AfkSpecTime.IntValue;
+	afkWarnKickTime = h_AfkWarnKickTime.IntValue;
+	afkKickTime = h_AfkKickTime.IntValue;
+	afkCheckInterval = h_AfkCheckInterval.IntValue;
+	afkKickEnabled = h_AfkKickEnabled.BoolValue;
+	afkSpecOnConnect = h_AfkSpecOnConnect.BoolValue;
+	afkShowTeamPanel = h_AfkShowTeamPanel.BoolValue;
 }
 
 public void ConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -298,7 +298,7 @@ public Action afkPlayerAction (Event event, const char[] name, bool dontBroadcas
 	propname = "userid";
 	
 	// gets the id
-	int id = GetClientOfUserId(GetEventInt(event, propname));
+	int id = GetClientOfUserId(event.GetInt(propname));
 	
 	// resets his timers
 	if (id > 0)
@@ -308,7 +308,7 @@ public Action afkPlayerAction (Event event, const char[] name, bool dontBroadcas
 public Action afkChangedTeam (Event event, const char[] name, bool dontBroadcast)
 {
 	// we get the victim
-	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	int victim = GetClientOfUserId(event.GetInt("userid"));
 	CreateTimer(0.5, ClientReallyChangeTeam, victim, _); // check delay
 	return Plugin_Continue;
 }
