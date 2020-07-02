@@ -9,7 +9,8 @@
 * Purpose	: This plugins forces AFK players to spectate, and later it kicks them. Admins 
 * 			  are inmune to kick.
 *********************************************************************************************/
-
+#pragma semicolon 1
+#pragma newdecls required
 #include <sourcemod>
 #include <sdktools>
 #include <sdktools_functions>
@@ -17,36 +18,37 @@
 
 
 // For cvars
-new Handle:h_AfkWarnSpecTime;
-new Handle:h_AfkSpecTime;
-new Handle:h_AfkWarnKickTime;
-new Handle:h_AfkKickTime;
-new Handle:h_AfkCheckInterval;
-new Handle:h_AfkKickEnabled;
-new Handle:h_AfkSpecOnConnect;
-new Handle:h_AfkShowTeamPanel;
-new afkWarnSpecTime;
-new afkSpecTime;
-new afkWarnKickTime;
-new afkKickTime;
-new afkCheckInterval;
-new bool:afkKickEnabled;
-new bool:afkSpecOnConnect;
-new bool:afkShowTeamPanel;
+ConVar h_AfkWarnSpecTime;
+ConVar h_AfkSpecTime;
+ConVar h_AfkWarnKickTime;
+ConVar h_AfkKickTime;
+ConVar h_AfkCheckInterval;
+ConVar h_AfkKickEnabled;
+ConVar h_AfkSpecOnConnect;
+ConVar h_AfkShowTeamPanel;
+int afkWarnSpecTime;
+int afkSpecTime;
+int afkWarnKickTime;
+int afkKickTime;
+int afkCheckInterval;
+bool afkKickEnabled;
+bool afkSpecOnConnect;
+bool afkShowTeamPanel;
 
 
 // work variables
-new bool:afkManager_Active = false;
-new afkPlayerTimeLeftWarn[MAXPLAYERS + 1];
-new afkPlayerTimeLeftAction[MAXPLAYERS + 1];
-new Float:afkPlayerLastPos[MAXPLAYERS + 1][3];
-new Float:afkPlayerLastEyes[MAXPLAYERS + 1][3];
-new bool:LeavedSafeRoom
-new bool:L4D2Version;
-new bool:PlayerJustConnected[MAXPLAYERS + 1];
+bool afkManager_Active = false;
+int afkPlayerTimeLeftWarn[MAXPLAYERS + 1];
+int afkPlayerTimeLeftAction[MAXPLAYERS + 1];
+float afkPlayerLastPos[MAXPLAYERS + 1][3];
+float afkPlayerLastEyes[MAXPLAYERS + 1][3];
+bool LeavedSafeRoom;
+bool L4D2Version;
+bool PlayerJustConnected[MAXPLAYERS + 1];
 int g_iPlayerSpawn, g_iRoundStart;
+Handle PlayerLeftStartTimer = null;
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
 	name = "[L4D] VS Auto-spectate on AFK",
 	author = "djromero (SkyDavid, David Romero) & Harry",
@@ -55,7 +57,7 @@ public Plugin:myinfo =
 	url = "www.sky.zebgames.com"
 }
 
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) 
 {
 	// Checks to see if the game is a L4D game. If it is, check if its the sequel. L4DVersion is L4D if false, L4D2 if true.
 	EngineVersion test = GetEngineVersion();
@@ -71,7 +73,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	return APLRes_Success;
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	// We register the spectate command
 	//RegConsoleCmd("spectate", cmd_spectate);
@@ -109,14 +111,14 @@ public OnPluginStart()
 	h_AfkShowTeamPanel = CreateConVar("l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	
 	// Hook cvars changes ...
-	HookConVarChange(h_AfkWarnSpecTime, ConVarChanged);
-	HookConVarChange(h_AfkSpecTime, ConVarChanged);
-	HookConVarChange(h_AfkWarnKickTime, ConVarChanged);
-	HookConVarChange(h_AfkKickTime, ConVarChanged);
-	HookConVarChange(h_AfkCheckInterval, ConVarChanged);
-	HookConVarChange(h_AfkKickEnabled, ConVarChanged);
-	HookConVarChange(h_AfkSpecOnConnect, ConVarChanged);
-	HookConVarChange(h_AfkShowTeamPanel, ConVarChanged);
+	h_AfkWarnSpecTime.AddChangeHook(ConVarChanged);
+	h_AfkSpecTime.AddChangeHook(ConVarChanged);
+	h_AfkWarnKickTime.AddChangeHook(ConVarChanged);
+	h_AfkKickTime.AddChangeHook(ConVarChanged);
+	h_AfkCheckInterval.AddChangeHook(ConVarChanged);
+	h_AfkKickEnabled.AddChangeHook(ConVarChanged);
+	h_AfkSpecOnConnect.AddChangeHook(ConVarChanged);
+	h_AfkShowTeamPanel.AddChangeHook(ConVarChanged);
 	
 	// We register the version cvar
 	CreateConVar("l4d_specafk_version", PLUGIN_VERSION, "Version of L4D VS Auto spectate on AFK", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
@@ -127,11 +129,18 @@ public OnPluginStart()
 	// We read the cvars
 	ReadCvars();
 	
+	CreateTimer(3.0, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
+
 	AutoExecConfig(true, "L4DVSAutoSpectateOnAFK");
 }
 
+public void OnPluginEnd()
+{
+	ResetPlugin();
+	ResetTimer();
+}
 
-public ReadCvars()
+public void ReadCvars()
 {
 	// first we read all the variables ...
 	afkWarnSpecTime = GetConVarInt(h_AfkWarnSpecTime);
@@ -144,14 +153,14 @@ public ReadCvars()
 	afkShowTeamPanel = GetConVarBool(h_AfkShowTeamPanel);
 }
 
-public ConVarChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void ConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	ReadCvars();
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
-	new i;
+	int i;
 	for (i=1;i<=MAXPLAYERS;i++)
 		PlayerJustConnected[i] = false;
 	
@@ -159,18 +168,20 @@ public OnMapStart()
 	ReadCvars();
 }
 
-public OnMapEnd()
+public void OnMapEnd()
 {
 	afkManager_Stop();
+	ResetPlugin();
+	ResetTimer();
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	PlayerJustConnected[client] = false;
 	afkResetTimers(client);
 }
 
-public bool:OnClientConnect(int client)
+public bool OnClientConnect(int client)
 {
 	// If players already leaved safe room we mark the player as just connected ...
 	PlayerJustConnected[client] = true;
@@ -180,7 +191,7 @@ public bool:OnClientConnect(int client)
 	return true;
 }
 
-public IsValidClient (client)
+public bool IsValidClient (int client)
 {
 	if ((client >= 1) && (client <= GetMaxClients()))
 		return true;
@@ -188,7 +199,7 @@ public IsValidClient (client)
 	return false;
 }
 
-public IsValidPlayer (client)
+public bool IsValidPlayer (int client)
 {
 	if (client == 0)
 		return false;
@@ -205,14 +216,14 @@ public IsValidPlayer (client)
 	return true;
 }
 
-bool:IsClientMember (client)
+bool IsClientMember (int client)
 {
 	// Checks valid player
 	if (!IsValidPlayer (client))
 		return false;
 	
 	// Gets the admin id
-	new AdminId:id = GetUserAdmin(client);
+	AdminId id = GetUserAdmin(client);
 	
 	// If player is not admin ...
 	if (id == INVALID_ADMIN_ID)
@@ -225,17 +236,17 @@ bool:IsClientMember (client)
 	return false;
 }
 
-public Action:Command_Say(client, args)
+public Action Command_Say(int client, int args)
 {
 	if(client && IsClientInGame(client))
 		afkResetTimers(client);
 }
 
-public Action:Event_RoundStart (Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_RoundStart (Event event, const char[] name, bool dontBroadcast)
 {
-
 	LeavedSafeRoom = false;
 	afkManager_Stop();
+	ResetTimer();
 	if( g_iPlayerSpawn == 1 && g_iRoundStart == 0 )
 		CreateTimer(3.0, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	g_iRoundStart = 1;
@@ -243,10 +254,10 @@ public Action:Event_RoundStart (Handle:event, const String:name[], bool:dontBroa
 	return Plugin_Continue;
 }
 
-public Action:Event_PlayerSpawn(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
 	if( g_iPlayerSpawn == 0 && g_iRoundStart == 1 )
-		CreateTimer(0.5, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(3.0, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	g_iPlayerSpawn = 1;
 }
 
@@ -255,23 +266,24 @@ public Action tmrStart(Handle timer)
 	// We start the AFK manager
 	if(!afkManager_Active)
 	{
-		CreateTimer(1.0, PlayerLeftStart, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+		if(PlayerLeftStartTimer == null) CreateTimer(1.0, PlayerLeftStart, _, TIMER_REPEAT);
 		afkManager_Start();
 	}
 }
 
 
-public Action:Event_RoundEnd (Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_RoundEnd (Event event, const char[] name, bool dontBroadcast)
 {
 	PrintToServer("******* ROUND END *********");
 	
 	afkManager_Stop();
+	ResetPlugin();
 }
 
 
-public Action:afkPlayerAction (Handle:event, const String:name[], bool:dontBroadcast)
+public Action afkPlayerAction (Event event, const char[] name, bool dontBroadcast)
 {
-	new String:propname[200];
+	char propname[200];
 	
 	// gets the property name
 	if (strcmp(name, "entity_shoved", false)==0)
@@ -286,17 +298,17 @@ public Action:afkPlayerAction (Handle:event, const String:name[], bool:dontBroad
 	propname = "userid";
 	
 	// gets the id
-	new id = GetClientOfUserId(GetEventInt(event, propname));
+	int id = GetClientOfUserId(GetEventInt(event, propname));
 	
 	// resets his timers
 	if (id > 0)
 		afkResetTimers(id);
 }
 
-public Action:afkChangedTeam (Handle:event, const String:name[], bool:dontBroadcast)
+public Action afkChangedTeam (Event event, const char[] name, bool dontBroadcast)
 {
 	// we get the victim
-	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	CreateTimer(0.5, ClientReallyChangeTeam, victim, _); // check delay
 	return Plugin_Continue;
 }
@@ -330,7 +342,7 @@ public Action ClientReallyChangeTeam(Handle timer, int victim)
 	return Plugin_Continue;
 }
 
-public Action:afkJoinHint (Handle:Timer, any:client)
+public Action afkJoinHint (Handle Timer, int client)
 {
 	// If player is valid
 	if ((client > 0) && IsClientConnected(client) && IsClientInGame(client))
@@ -347,7 +359,7 @@ public Action:afkJoinHint (Handle:Timer, any:client)
 	}
 }
 
-afkResetTimers (client)
+void afkResetTimers (int client)
 {
 	// if client is not valid
 	if (!IsValidClient(client))
@@ -384,13 +396,13 @@ afkResetTimers (client)
 	}
 }
 
-afkManager_Start()
+void afkManager_Start()
 {
 	// mark as active
 	afkManager_Active = true; 
 	
 	// now we reset all the timers ...
-	new i;
+	int i;
 	for (i=1;i<=MAXPLAYERS;i++)
 	{
 		afkResetTimers(i);
@@ -400,16 +412,16 @@ afkManager_Start()
 	CreateTimer(float(afkCheckInterval), afkCheckThread, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public Action:afkCheckThread(Handle:timer)
+public Action afkCheckThread(Handle timer)
 {
 	// if afkmanager is not active ...
 	if (!afkManager_Active)
 		return Plugin_Stop;
 		
-	new count = GetMaxClients();
-	decl i;
-	new Float:pos[3];
-	new Float:eyes[3];
+	int count = GetMaxClients();
+	int i;
+	float pos[3];
+	float eyes[3];
 	
 	// we check all connected (and alive) clients ...
 	for (i=1;i<=count;i++)
@@ -541,7 +553,7 @@ public Action:afkCheckThread(Handle:timer)
 }
 
 
-afkForceSpectate (client, bool:advertise, bool:self)
+void afkForceSpectate (int client, bool advertise, bool self)
 {
 	if (!IsClientConnected(client)||IsFakeClient(client))
 	{
@@ -552,7 +564,7 @@ afkForceSpectate (client, bool:advertise, bool:self)
 	if (GetClientTeam(client) == 3)
 	{
 		// ... and he wasn't a tank ...
-		new String:iClass[100];
+		char iClass[100];
 		GetClientModel(client, iClass, sizeof(iClass));
 		if (StrContains(iClass, "hulk", false) == -1)
 		{
@@ -584,25 +596,25 @@ afkForceSpectate (client, bool:advertise, bool:self)
 	// Print forced info
 	if (advertise)
 	{
-		new String:PlayerName[200];
+		char PlayerName[200];
 		GetClientName(client, PlayerName, sizeof(PlayerName));
 		//PrintToChatAll("\x01\x04[TS] \x03%s \x01has been switched to \x03Spectators", PlayerName);
 	}
 	else if (self) 	// If player switched itself ...
 	{
-		new String:PlayerName[200];
+		char PlayerName[200];
 		GetClientName(client, PlayerName, sizeof(PlayerName));
 		//PrintToChatAll("\x01\x04[TS] \x03%s \x01switched himself to \x03Spectators", PlayerName);
 	}
 	
 }
 
-public Action:afkForceSpectateJoin (Handle:timer, any:client)
+public Action afkForceSpectateJoin (Handle timer, int client)
 {
 	afkForceSpectate(client, false, false);
 }
 
-afkKickClient (client)
+void afkKickClient (int client)
 {
 	if ((!IsClientConnected(client))||IsFakeClient(client))
 		return;
@@ -611,7 +623,7 @@ afkKickClient (client)
 	if (GetClientTeam(client) == 3)
 	{
 		// ... and he wasn't a tank ...
-		new String:iClass[100];
+		char iClass[100];
 		GetClientModel(client, iClass, sizeof(iClass));
 		if (StrContains(iClass, "hulk", false) == -1)
 			ForcePlayerSuicide(client);	// we kill him
@@ -624,14 +636,14 @@ afkKickClient (client)
 	KickClient(client, "Kicked because of AFK status");
 	
 	// Print forced info
-	new String:PlayerName[200];
+	char PlayerName[200];
 	GetClientName(client, PlayerName, sizeof(PlayerName));
 	
 	PrintToChatAll("\x01\x04[TS] \x03%s \x01旁觀閒置太久被踢出伺服器.", PlayerName);
 }
 
 
-afkManager_Stop()
+void afkManager_Stop()
 {
 	// if it was not active ...
 	if (!afkManager_Active) return;
@@ -645,6 +657,7 @@ public Action PlayerLeftStart(Handle Timer)
 	if (LeftStartArea())
 	{
 		LeavedSafeRoom = true;
+		PlayerLeftStartTimer = null;
 		return Plugin_Stop;
 	}
 	return Plugin_Continue;
@@ -720,6 +733,21 @@ stock int L4D2_GetInfectedAttacker(int client)
 	}
 
 	return -1;
+}
+
+void ResetPlugin()
+{
+	g_iRoundStart = 0;
+	g_iPlayerSpawn = 0;
+}
+
+void ResetTimer()
+{
+	if(PlayerLeftStartTimer != null) 
+	{
+		KillTimer(PlayerLeftStartTimer);
+		PlayerLeftStartTimer = null;
+	}
 }
 /////////////////
 ///////////////////
