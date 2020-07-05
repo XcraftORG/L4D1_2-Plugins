@@ -285,7 +285,6 @@ void IsAllowed()
 		else
 			UnhookEvent("player_death", eventplayer_death);
 		UnhookEvent("player_now_it",        Event_AchievementBoomer);
-		UnhookEvent("round_end",            Event_RemoveAll,    EventHookMode_PostNoCopy);
 		UnhookEvent("witch_killed",            Event_AchievementWitch);
 	}
 }
