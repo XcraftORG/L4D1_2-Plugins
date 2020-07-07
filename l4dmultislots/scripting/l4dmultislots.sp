@@ -27,7 +27,7 @@ ConVar hMaxSurvivors;
 ConVar hTime;
 int iMaxSurvivors,iTime;
 Handle timer_SpecCheck = INVALID_HANDLE;
-bool gbVehicleLeaving;
+bool gbVehicleLeaving, L4D2Version;
 bool gbPlayedAsSurvivorBefore[MAXPLAYERS+1];
 bool gbFirstItemPickedUp;
 bool gbPlayerPickedUpFirstItem[MAXPLAYERS+1];
@@ -48,11 +48,15 @@ public Plugin myinfo =
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) 
 {
-	// This plugin will only work on L4D 1/2
-	char GameName[64];
-	GetGameFolderName(GameName, sizeof(GameName));
-	if (StrContains(GameName, "left4dead", false) == -1)
-		return APLRes_Failure; 
+	EngineVersion test = GetEngineVersion();
+	
+	if( test == Engine_Left4Dead ) L4D2Version = false;
+	else if( test == Engine_Left4Dead2 ) L4D2Version = true;
+	else
+	{
+		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
+		return APLRes_SilentFailure;
+	}
 	
 	return APLRes_Success; 
 }
@@ -612,12 +616,16 @@ stock void StripWeapons(int client) // strip all items from client
 
 stock void GiveWeapon(int client) // give client random weapon
 {
-	switch(GetRandomInt(0,3))
+	BypassAndExecuteCommand(client, "give", "pistol");
+	int random;
+	if(L4D2Version) random = GetRandomInt(1,4);
+	else random = GetRandomInt(1,2);
+	switch(random)
 	{
-		case 0: BypassAndExecuteCommand(client, "give", "smg");
-		case 1: BypassAndExecuteCommand(client, "give", "smg_silenced");
-		case 2: BypassAndExecuteCommand(client, "give", "shotgun_chrome");
-		case 3: BypassAndExecuteCommand(client, "give", "pumpshotgun");
+		case 1: BypassAndExecuteCommand(client, "give", "smg");
+		case 2: BypassAndExecuteCommand(client, "give", "pumpshotgun");
+		case 3: BypassAndExecuteCommand(client, "give", "smg_silenced");
+		case 4: BypassAndExecuteCommand(client, "give", "shotgun_chrome");
 	}	
 	BypassAndExecuteCommand(client, "give", "ammo");
 }
