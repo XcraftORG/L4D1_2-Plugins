@@ -12,7 +12,7 @@
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
-#define PLUGIN_VERSION 				"1.8"
+#define PLUGIN_VERSION 				"1.9"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -344,8 +344,7 @@ public void evtSurvivorRescued(Event event, const char[] name, bool dontBroadcas
 	{	
 		StripWeapons(client);
 		//BypassAndExecuteCommand(client, "give", "pistol_magnum");
-		if(StrContains(gMapName, "c1m1_hotel", false) == -1)
-			GiveWeapon(client);
+		GiveWeapon(client);
 	}
 }
 
@@ -601,10 +600,10 @@ stock void BypassAndExecuteCommand(int client, char[] strCommand, char[] strPara
 	SetCommandFlags(strCommand, flags);
 }
 
-stock void StripWeapons(int client) // strip all items from client
+stock void StripWeapons(int client) // strip primary and second weapon from client
 {
 	int itemIdx;
-	for (int x = 0; x <= 3; x++)
+	for (int x = 0; x <= 1; x++)
 	{
 		if((itemIdx = GetPlayerWeaponSlot(client, x)) != -1)
 		{  
@@ -740,8 +739,7 @@ bool SpawnFakeClient()
 				
 				StripWeapons(fakeclient);
 				//BypassAndExecuteCommand(fakeclient, "give", "pistol_magnum");
-				if(StrContains(gMapName, "c1m1_hotel", false) == -1)
-					GiveWeapon(fakeclient);
+				GiveWeapon(fakeclient);
 
 				// kick the fake client to make the bot take over
 				CreateTimer(DELAY_KICK_FAKECLIENT, Timer_KickFakeBot, fakeclient, TIMER_REPEAT);
