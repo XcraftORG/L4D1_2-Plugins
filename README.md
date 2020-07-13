@@ -31,8 +31,8 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>l4dmultislots</b>: Allows additional survivor/infected players in coop, versus, and survival
 * <b>hp_tank_show</b>: Display Tank HP status on his head
 # Scripting Compiler
-* [sourcemod 1.63](https://github.com/fbef0102/L4D1-Competitive-Plugins/releases/download/v1.0/sourcemod_1.63_Compiler.zip): most of source codes
-* [sourcemod 1.9](https://github.com/fbef0102/L4D1-Competitive-Plugins/releases/download/v1.0/sourcemod_1.9_Compiler.zip): few source codes need new compiler
+* [sourcemod 1.8](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.8_Compiler.zip): most of source codes
+* [sourcemod 1.10](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.10_Compiler.zip): few source codes need new compiler
 # Others
 * <b>[L4D1-Competitive-Plugins](https://github.com/fbef0102/L4D1-Competitive-Plugins)</b>
 * <b>[L4D2-Plugins](https://github.com/fbef0102/L4D2-Plugins)</b>
