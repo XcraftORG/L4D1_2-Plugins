@@ -12,7 +12,7 @@
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
-#define PLUGIN_VERSION 				"1.9"
+#define PLUGIN_VERSION 				"2.0"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -220,7 +220,7 @@ public Action JoinTeam(int client,int args)
 	{			
 		if(TotalAliveFreeBots() == 0)
 		{
-			if(bKill) 
+			if(bKill && iTime > 0) 
 			{
 				ChangeClientTeam(client, TEAM_SURVIVORS);
 				CreateTimer(0.1, Timer_KillSurvivor, client);
@@ -516,7 +516,7 @@ public Action Timer_KickNoNeededBot(Handle timer, int bot)
 		
 		if(!HasIdlePlayer(bot))
 		{
-			StripWeapons(bot);
+			//StripWeapons(bot);
 			KickClient(bot, "Kicking No Needed Bot");
 		}
 	}	
