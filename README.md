@@ -31,6 +31,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>l4dmultislots</b>: Allows additional survivor/infected players in coop, versus, and survival.
 * <b>hp_tank_show</b>: Display Tank HP status on his head.
 * <b>TickrateFixes</b>: Fixes a handful of silly Tickrate bugs including door speed.
+* <b>cge_l4d2_deathcheck</b>: Prevents mission loss(Round_End) until all human players have died.
 # Scripting Compiler
 * [sourcemod 1.8 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.8_Compiler.zip): most of source codes
 * [sourcemod 1.10 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.10_Compiler.zip): few source codes need new compiler
