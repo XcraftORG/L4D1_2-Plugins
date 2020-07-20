@@ -1,0 +1,47 @@
+[L4D2] Clear drop items, non-death drops
+
+-Original Post-
+https://forums.alliedmods.net/showthread.php?p=2638375
+
+
+delete all weapons, items execpt for kit, m60 and gascan
+-Delete weapon list-
+{
+	"weapon_smg_mp5",
+	"weapon_smg",
+	"weapon_smg_silenced",
+	"weapon_shotgun_chrome",
+	"weapon_pumpshotgun",
+	"weapon_hunting_rifle",
+	"weapon_pistol",
+	//"weapon_rifle_m60",
+	//"weapon_first_aid_kit",
+	"weapon_autoshotgun",
+	"weapon_shotgun_spas",
+	"weapon_sniper_military",
+	"weapon_rifle",
+	"weapon_rifle_ak47",
+	"weapon_rifle_desert",
+	"weapon_sniper_awp",
+	"weapon_rifle_sg552",
+	"weapon_sniper_scout",
+	"weapon_grenade_launcher",
+	"weapon_pistol_magnum",
+	"weapon_molotov",
+	"weapon_pipe_bomb",
+	"weapon_vomitjar",
+	"weapon_defibrillator",
+	"weapon_pain_pills",
+	"weapon_adrenaline",
+	"weapon_melee",
+	"weapon_upgradepack_incendiary",
+	"weapon_upgradepack_explosive",
+	//"weapon_gascan",
+	"weapon_fireworkcrate",
+	"weapon_propanetank",
+	"weapon_oxygentank"
+}
+
+-ConVar-
+// clear time
+sm_drop_clear_time "60.0"
