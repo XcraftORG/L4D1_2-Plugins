@@ -1,6 +1,6 @@
 # L4D1&2-Plugins  by Harry Potter
 Help server to record, make server more fun, and more useful plugins for adm.
-> All plugins in here apply to both L4D1/2 (last edited:2020/7/19)
+> All plugins in here apply to both L4D1/2 (last edited:2020/7/21)
 # Require
 * Clean Servers:
   * [Sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) (or newer), [Metamod](https://www.metamodsource.net/downloads.php?branch=stable)
@@ -32,7 +32,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>hp_tank_show</b>: Display Tank HP status on his head.
 * <b>TickrateFixes</b>: Fixes a handful of silly Tickrate bugs including door speed.
 * <b>cge_l4d2_deathcheck</b>: Prevents mission loss(Round_End) until all human players have died.
-* <b>clear_weapon_drop</b>: [L4D2] Clear drop items, non-death drops
+* <b>clear_weapon_drop</b>: Clear drop items, non-death drops
 # Scripting Compiler
 * [sourcemod 1.8 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.8_Compiler.zip): most of source codes
 * [sourcemod 1.10 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.10_Compiler.zip): few source codes need new compiler
