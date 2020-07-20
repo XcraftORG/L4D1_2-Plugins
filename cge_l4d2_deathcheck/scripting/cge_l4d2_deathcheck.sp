@@ -7,7 +7,7 @@ public Plugin myinfo = {
     name = "[L4D, L4D2] No Death Check Until Dead", 
     author = "chinagreenelvis, Harry", 
     description = "Prevents mission loss until all players have died.", 
-    version = "1.6", 
+    version = "1.7", 
     url = "https://forums.alliedmods.net/showthread.php?t=142432" 
 }; 
 
@@ -17,11 +17,9 @@ ConVar deathcheck_bots = null;
 ConVar director_no_death_check = null;
 ConVar allow_all_bot_survivor_team = null;
 
-int director_no_death_check_default_cvar = 0;
-int allow_all_bot_survivor_team_default_cvar = 0;
-
 bool Enabled = false;
 int g_iPlayerSpawn, g_iRoundStart;
+Handle PlayerLeftStartTimer;
 
 public void OnPluginStart()
 {  
@@ -39,6 +37,9 @@ public void OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("round_start",		Event_RoundStart,	EventHookMode_PostNoCopy);
 	HookEvent("round_end",			Event_RoundEnd,		EventHookMode_PostNoCopy);
+	HookEvent("map_transition", Event_RoundEnd); //戰役過關到下一關的時候 (沒有觸發round_end)
+	HookEvent("mission_lost", Event_RoundEnd); //戰役滅團重來該關卡的時候 (之後有觸發round_end)
+	HookEvent("finale_vehicle_leaving", Event_RoundEnd); //救援載具離開之時  (沒有觸發round_end)
 	HookEvent("player_bot_replace", Event_PlayerBotReplace); 
 	HookEvent("bot_player_replace", Event_BotPlayerReplace); 
 	HookEvent("player_team", Event_PlayerTeam);
@@ -50,12 +51,9 @@ public void OnPluginStart()
 public void OnPluginEnd()
 {
 	ResetPlugin();
-}
-
-public void OnConfigsExecuted()
-{
-	director_no_death_check_default_cvar = director_no_death_check.IntValue;
-	allow_all_bot_survivor_team_default_cvar = allow_all_bot_survivor_team.IntValue;
+	ResetTimer();
+	ResetConVar(director_no_death_check, true, true);
+	ResetConVar(allow_all_bot_survivor_team, true, true);
 }
 
 public void ConVarChange_deathcheck(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -74,14 +72,14 @@ public void ConVarChange_deathcheck(ConVar convar, const char[] oldValue, const 
 			else
 			{
 				//PrintToChatAll("Resetting allow_all_bot_survivor_team to default value.");
-				allow_all_bot_survivor_team.SetInt(allow_all_bot_survivor_team_default_cvar);
+				ResetConVar(allow_all_bot_survivor_team, true, true);
 			}
 		}
         else
 		{
+			ResetConVar(director_no_death_check, true, true);
+			ResetConVar(allow_all_bot_survivor_team, true, true);
 			//PrintToChatAll("Resetting director_no_death_check and allow_all_bot_survivor_team to default values.");
-			director_no_death_check.SetInt(director_no_death_check_default_cvar);
-			allow_all_bot_survivor_team.SetInt(allow_all_bot_survivor_team_default_cvar);
 		}
     }
 }
@@ -95,12 +93,12 @@ public void ConVarChange_deathcheck_bots(ConVar convar, const char[] oldValue, c
 			if (strcmp(newValue, "1") == 0)
 			{
 				//PrintToChatAll("Setting allow_all_bot_survivor_team to 1.");
-				SetConVarInt(allow_all_bot_survivor_team, 1);
+				allow_all_bot_survivor_team.SetInt(1);
 			}
 			else
 			{
 				//PrintToChatAll("Resetting allow_all_bot_survivor_team to default value.");
-				SetConVarInt(allow_all_bot_survivor_team, allow_all_bot_survivor_team_default_cvar);
+				ResetConVar(allow_all_bot_survivor_team, true, true);
 			}
 		}
 	}
@@ -109,6 +107,7 @@ public void ConVarChange_deathcheck_bots(ConVar convar, const char[] oldValue, c
 public void OnMapEnd()
 {
 	ResetPlugin();
+	ResetTimer();
 }
 
 public void OnClientDisconnect()
@@ -124,22 +123,27 @@ public void OnClientDisconnect_Post()
 public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast) 
 {
 	if( g_iPlayerSpawn == 1 && g_iRoundStart == 0 )
-		CreateTimer(3.0, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(0.5, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	g_iRoundStart = 1;
 }
 
 public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast) 
 {
 	if( g_iPlayerSpawn == 0 && g_iRoundStart == 1 )
-		CreateTimer(3.0, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(0.5, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	g_iPlayerSpawn = 1;
 } 
 
 public Action tmrStart(Handle timer)
 {
+	director_no_death_check.SetInt(0);
 	ResetPlugin();
-	if (Enabled == false)
-	{
+	if(PlayerLeftStartTimer == null) PlayerLeftStartTimer = CreateTimer(1.0, PlayerLeftStart, _, TIMER_REPEAT);
+}
+public Action PlayerLeftStart(Handle Timer)
+{
+	if (LeftStartArea() || Enabled)
+	{	
 		if (deathcheck.BoolValue)
 		{
 			director_no_death_check.SetInt(1);
@@ -149,12 +153,15 @@ public Action tmrStart(Handle timer)
 			}
 		}
 		Enabled = true;
+		PlayerLeftStartTimer = null;
+		return Plugin_Stop;
 	}
+	return Plugin_Continue;
 }
-
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)  
 {
 	ResetPlugin();
+	ResetTimer();
 }
 
 public void Event_PlayerBotReplace(Event event, const char[] name, bool dontBroadcast)
@@ -230,4 +237,41 @@ void ResetPlugin()
 	g_iRoundStart = 0;
 	g_iPlayerSpawn = 0;
 	Enabled = false;
+}
+
+void ResetTimer()
+{
+	if(PlayerLeftStartTimer != null)
+	{
+		KillTimer(PlayerLeftStartTimer);
+		PlayerLeftStartTimer = null;	
+	}
+}
+
+bool LeftStartArea()
+{
+	int ent = -1, maxents = GetMaxEntities();
+	for (int i = MaxClients+1; i <= maxents; i++)
+	{
+		if (IsValidEntity(i))
+		{
+			char netclass[64];
+			GetEntityNetClass(i, netclass, sizeof(netclass));
+			
+			if (StrEqual(netclass, "CTerrorPlayerResource"))
+			{
+				ent = i;
+				break;
+			}
+		}
+	}
+	
+	if (ent > -1)
+	{
+		if (GetEntProp(ent, Prop_Send, "m_hasAnySurvivorLeftSafeArea"))
+		{
+			return true;
+		}
+	}
+	return false;
 }
