@@ -12,7 +12,7 @@
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
-#define PLUGIN_VERSION 				"2.1"
+#define PLUGIN_VERSION 				"2.2"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -67,7 +67,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_js", JoinTeam, "Attempt to join Survivors");
 	
 	// Register cvars
-	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "4", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)", CVAR_FLAGS, true, 4.0, true, 32.0);
+	hMaxSurvivors	= CreateConVar("l4d_multislots_max_survivors", "4", "Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)", CVAR_FLAGS, true, 0.0, true, 32.0);
 	hTime = CreateConVar("l4d_multislots_time", "100", "Spawn a dead survivor bot after a certain time round starts [0: Disable]", CVAR_FLAGS, true, 0.0);
 	
 	GetCvars();
@@ -79,7 +79,7 @@ public void OnPluginStart()
 	HookEvent("survivor_rescued", evtSurvivorRescued);
 	HookEvent("player_activate", evtPlayerActivate);
 	HookEvent("player_bot_replace", evtBotReplacedPlayer);
-	HookEvent("player_team", evtPlayerTeam);
+	HookEvent("player_team", evtPlayerTeam, EventHookMode_Pre);
 	HookEvent("player_spawn", evtPlayerSpawn);
 	HookEvent("player_death", evtPlayerDeath);
 	HookEvent("round_start", 		Event_RoundStart);
@@ -212,10 +212,9 @@ public Action JoinTeam(int client,int args)
 ////////////////////////////////////
 // Events
 ////////////////////////////////////
-
 public void evtPlayerActivate(Event event, const char[] name, bool dontBroadcast) 
 {
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(client)
 	{
 		if((GetClientTeam(client) != TEAM_INFECTED) && (GetClientTeam(client) != TEAM_SURVIVORS) && !IsFakeClient(client) && !IsClientIdle(client))
@@ -225,28 +224,37 @@ public void evtPlayerActivate(Event event, const char[] name, bool dontBroadcast
 
 public void evtPlayerTeam(Event event, const char[] name, bool dontBroadcast) 
 {
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
-	int newteam = GetEventInt(event, "team");
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	int oldteam = event.GetInt("oldteam");
 	
-	if(client)
+	if(oldteam == 1 || event.GetBool("disconnect"))
 	{
-		if(!IsClientConnected(client))
-			return;
-		if(!IsClientInGame(client) || IsFakeClient(client) || !IsAlive(client))
-			return;
-		
-		if(newteam == TEAM_INFECTED)
+		if(IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) == 1)
 		{
-			char PlayerName[100];
-			GetClientName(client, PlayerName, sizeof(PlayerName));
-			//PrintToChatAll("\x01[\x04MultiSlots\x01] %s joined the Infected Team", PlayerName);
+			for(int i = 1; i <= MaxClients; i++)
+			{
+				if(IsClientConnected(i) && IsClientInGame(i) && IsFakeClient(i) && GetClientTeam(i) == TEAM_SURVIVORS && IsAlive(i))
+				{
+					if(HasEntProp(i, Prop_Send, "m_humanSpectatorUserID"))
+					{
+						if(GetClientOfUserId(GetEntProp(i, Prop_Send, "m_humanSpectatorUserID")) == client)
+						{
+							//LogMessage("afk player %N changes team or leaves the game, his bot is %N",client,i);
+							if(!bLeftSafeRoom)
+								CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, i);
+							else
+								CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, i);
+						}
+					}
+				}
+			}
 		}
 	}
 }
 
 public void evtSurvivorRescued(Event event, const char[] name, bool dontBroadcast) 
 {
-	int client = GetClientOfUserId(GetEventInt(event, "victim"));
+	int client = GetClientOfUserId(event.GetInt("victim"));
 	if(client)
 	{	
 		StripWeapons(client);
@@ -274,7 +282,7 @@ public void evtFinaleVehicleLeaving(Event event, const char[] name, bool dontBro
 
 public void evtBotReplacedPlayer(Event event, const char[] name, bool dontBroadcast) 
 {
-	int fakebot = GetClientOfUserId(GetEventInt(event, "bot"));
+	int fakebot = GetClientOfUserId(event.GetInt("bot"));
 	if(fakebot && GetClientTeam(fakebot) == TEAM_SURVIVORS && IsFakeClient(fakebot))
 	{
 		if(!bLeftSafeRoom)
@@ -286,7 +294,7 @@ public void evtBotReplacedPlayer(Event event, const char[] name, bool dontBroadc
 
 public void evtPlayerSpawn(Event event, const char[] name, bool dontBroadcast) 
 {
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
 	{
 		if(!bLeftSafeRoom)
@@ -302,7 +310,7 @@ public void evtPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 
 public void evtPlayerDeath(Event event, const char[] name, bool dontBroadcast) 
 {
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
 	{
 		if(!bLeftSafeRoom)

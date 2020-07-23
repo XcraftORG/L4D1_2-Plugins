@@ -5,16 +5,9 @@ You still need to use l4dtoolz or left4downtown or l4dhooks to unlock server slo
 
 -Convars-
 // Kick Fake Survivor bots if numbers of survivors reach the certain value (does not kick real player)
-// -
-// Default: "4"
-// Minimum: "4.000000"
-// Maximum: "32.000000"
 l4d_multislots_max_survivors "4"
 
 // Spawn a dead survivor bot after a certain time round starts [0: Disable]
-// -
-// Default: "100"
-// Minimum: "0.000000"
 l4d_multislots_time "100"
 
 
