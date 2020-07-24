@@ -7,10 +7,10 @@
 public Plugin myinfo =
 {
 	name = "[L4D1/2] final rescue gravity",
-	author = "raziEiL [disawar1]",
+	author = "Harry Potter",
 	description = "Set client gravity after final rescue starts just for fun.",
 	version = "1.0",
-	url = "http://steamcommunity.com/id/raziEiL"
+	url = "https://steamcommunity.com/id/TIGER_x_DRAGON/"
 }
 
 #define TEAM_SPECTATOR		1
