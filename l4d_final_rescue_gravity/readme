@@ -7,8 +7,11 @@ l4d_final_rescue_gravity_allow "1"
 // If 1, change all clients' gravity to normal when finale vehicle is coming.
 l4d_final_rescue_gravity_escape_off "1"
 
-// Which zombie class can also obtain the gravity, 0=None, 1=Smoker, =Boomer, 4=Hunter, 8=Spitter, 16=Jockey, 32=Charger, 64=Tank. Add numbers together.
+// (L4D2)Which zombie class can also obtain the gravity, 0=None, 1=Smoker, =Boomer, 4=Hunter, 8=Spitter, 16=Jockey, 32=Charger, 64=Tank. Add numbers together.
 l4d_final_rescue_gravity_infected_class "127"
+
+// (L4D1)Which zombie class can also obtain the gravity, 0=None, 1=Smoker, 2=Boomer, 4=Hunter, 8=Tank. Add numbers together.
+l4d_final_rescue_gravity_infected_class "15"
 
 // Turn off the plugin in these maps, separate by commas (no spaces). (Empty = none).
 l4d_final_rescue_gravity_map_off "c5m5_bridge;c13m4_cutthroatcreek"
