@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "[L4D1/2] final rescue gravity",
 	author = "Harry Potter",
 	description = "Set client gravity after final rescue starts just for fun.",
-	version = "1.0",
+	version = "1.1",
 	url = "https://steamcommunity.com/id/TIGER_x_DRAGON/"
 }
 
@@ -263,9 +263,10 @@ public Action OnFinaleStart_Event(Event event, const char[] name, bool dontBroad
 public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast) 
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	if (!bFinalHasStart || !client || !IsClientInGame(client)) return;
+	if (!client || !IsClientInGame(client)) return;
 
-	ChangeClientGravity(client, g_fGravityValue);
+	if (!bFinalHasStart) PerformGravity(client, 1.0);
+	else ChangeClientGravity(client, g_fGravityValue);
 }
 
 public Action Finale_Escape_Start(Event event, const char[] name, bool dontBroadcast) 
@@ -297,7 +298,7 @@ void ChangeAllClientGravityToNormal()
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if(IsClientInGame(i) && IsPlayerAlive(i))
+		if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) != TEAM_SPECTATOR)
 		{
 			PerformGravity(i, 1.0);
 		}
@@ -308,7 +309,7 @@ void ChangeAllClientGravity(float GravityValue)
 {
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if(IsClientInGame(i) && IsPlayerAlive(i))
+		if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) != TEAM_SPECTATOR)
 		{
 			ChangeClientGravity(i, GravityValue);
 		}
@@ -335,8 +336,11 @@ void ChangeClientGravity(int client, float GravityValue)
 			PerformGravity(client, GravityValue);
 			return;
 		}
+		else
+		{
+			PerformGravity(client, 1.0);
+		}
 	}
-	PerformGravity(client, 1.0);
 }
 
 void PerformGravity(int client, float amount)
