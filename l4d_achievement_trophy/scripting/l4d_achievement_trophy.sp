@@ -645,7 +645,7 @@ void CreatePropGlow(int client, int entity)
 		
 		TeleportEntity(g_iBoomerHatGlow[client], vPos, vAng, NULL_VECTOR);
 		SetEntProp(g_iBoomerHatGlow[client], Prop_Data, "m_iEFlags", 0);
-	
+		SDKHook(g_iBoomerHatGlow[client], SDKHook_SetTransmit, Hook_SetTransmitHatGlow);		
 	}
 	else
 	{
@@ -659,7 +659,6 @@ void CreatePropGlow(int client, int entity)
 
 		DispatchKeyValue(g_iBoomerHatGlow[client], "model", MODEL_CONE);
 		DispatchKeyValue(g_iBoomerHatGlow[client], "StartGlowing", "1");
-		//DispatchKeyValue(g_iBoomerHatGlow[client], "StartDisabled", "1");
 		DispatchKeyValue(g_iBoomerHatGlow[client], "targetname", "propglow");
 
 		DispatchKeyValue(g_iBoomerHatGlow[client], "GlowForTeam", "3");
@@ -667,8 +666,6 @@ void CreatePropGlow(int client, int entity)
 		/* GlowForTeam =  -1:ALL  , 0:NONE , 1:SPECTATOR  , 2:SURVIVOR , 3:INFECTED */
 
 		DispatchKeyValue(g_iBoomerHatGlow[client], "fadescale", "1");
-		// DispatchKeyValue(g_iBoomerHatGlow[client], "fademindist", "3000");
-		// DispatchKeyValue(g_iBoomerHatGlow[client], "fademaxdist", "3200");
 
 		TeleportEntity(g_iBoomerHatGlow[client], vPos, vAng, NULL_VECTOR);
 		DispatchSpawn(g_iBoomerHatGlow[client]);
@@ -699,6 +696,15 @@ void CreatePropGlow(int client, int entity)
 
 		TeleportEntity(g_iBoomerHatGlow[client], g_vPos, g_vAng, NULL_VECTOR);
 	}
+}
+
+public Action Hook_SetTransmitHatGlow(int entity, int client)
+{
+    if(entity == g_iBoomerHatGlow[client])
+    {
+		return Plugin_Handled;
+	}
+    return Plugin_Continue;
 }
 
 public Action Timer_RemoveHat(Handle timer, int client)
