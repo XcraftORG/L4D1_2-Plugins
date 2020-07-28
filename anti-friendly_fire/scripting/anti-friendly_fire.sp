@@ -76,10 +76,18 @@ public Action Event_PlayerHurt(Event event, const char[] name, bool dontBroadcas
 		bIsSpecialWeapon = true;
 		if(g_hFireDisable.BoolValue == false) return Plugin_Continue;
 	}
-
-	int health = event.GetInt("health");
-	SetEntityHealth(victim, health + damage);
-	if(!bIsSpecialWeapon && GetClientTeam(attacker) == 2) HurtEntity(attacker, attacker, float(damage));
+	
+	if(bIsSpecialWeapon)
+	{
+		int health = event.GetInt("health");
+		SetEntityHealth(victim, health + damage);
+	}
+	else if(!bIsSpecialWeapon && GetClientTeam(attacker) == 2)
+	{
+		int health = event.GetInt("health");
+		SetEntityHealth(victim, health + damage);
+		HurtEntity(attacker, attacker, float(damage));
+	}
 	
 	return Plugin_Changed;
 }
