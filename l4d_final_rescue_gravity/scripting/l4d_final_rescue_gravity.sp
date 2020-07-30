@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "[L4D1/2] final rescue gravity",
 	author = "Harry Potter",
 	description = "Set client gravity after final rescue starts just for fun.",
-	version = "1.1",
+	version = "1.2",
 	url = "https://steamcommunity.com/id/TIGER_x_DRAGON/"
 }
 
@@ -19,12 +19,13 @@ public Plugin myinfo =
 #define CVAR_FLAGS FCVAR_NOTIFY
 #define DEBUG 0
 //ConVar
-ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarMapOff;
-ConVar g_hCvarGravityValue,g_hCvarGravityEscapeDisable,g_hCvarGravityInfectedFlag;
+ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarMapOff,
+g_hCvarGravityValue,g_hCvarGravityEscapeDisable,g_hCvarGravityInfectedFlag,g_hCvarCheckInterval;
+
 //value
 bool g_bCvarAllow, g_bMapStarted, bL4D2Version, bFinalHasStart, g_bValidMap;
 bool g_bGravityEscapeDisable;
-float g_fGravityValue;
+float g_fGravityValue, g_fCheckInterval;
 int g_iInfectedFlag;
 static int ZOMBIECLASS_TANK;
 
@@ -67,6 +68,7 @@ public void OnPluginStart()
 		"Which zombie class can also obtain the gravity, 0=None, 1=Smoker, 2=Boomer, 4=Hunter, 8=Tank. Add numbers together.", CVAR_FLAGS,true,0.0,true,15.0 );
 
 	g_hCvarMapOff =	CreateConVar("l4d_final_rescue_gravity_map_off",	"c5m5_bridge;c13m4_cutthroatcreek", "Turn off the plugin in these maps, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
+	g_hCvarCheckInterval =	CreateConVar("l4d_final_rescue_gravity_interval",	"2", "Interval (in sec.) to set gravity for client", CVAR_FLAGS,true,1.0);
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
 	g_hCvarMPGameMode.AddChangeHook(ConVarChanged_Allow);
@@ -77,6 +79,7 @@ public void OnPluginStart()
 	g_hCvarGravityValue.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarGravityEscapeDisable.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarGravityInfectedFlag.AddChangeHook(ConVarChanged_Cvars);
+	g_hCvarCheckInterval.AddChangeHook(ConVarChanged_Cvars);
 
 	AutoExecConfig(true,"l4d_final_rescue_gravity");
 }
@@ -131,6 +134,7 @@ void GetCvars()
 	g_fGravityValue = g_hCvarGravityValue.FloatValue;
 	g_bGravityEscapeDisable = g_hCvarGravityEscapeDisable.BoolValue;
 	g_iInfectedFlag = g_hCvarGravityInfectedFlag.IntValue;
+	g_fCheckInterval = g_hCvarCheckInterval.FloatValue;
 }
 
 void IsAllowed()
@@ -257,7 +261,7 @@ public Action OnFinaleStart_Event(Event event, const char[] name, bool dontBroad
 	#if DEBUG
 		PrintToChatAll("Final rescue starts");
 	#endif
-	ChangeAllClientGravity(g_fGravityValue);
+	CreateTimer(g_fCheckInterval, Timer_SetGravity, _, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 }
 
 public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast) 
@@ -265,8 +269,7 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if (!client || !IsClientInGame(client)) return;
 
-	if (!bFinalHasStart) PerformGravity(client, 1.0);
-	else ChangeClientGravity(client, g_fGravityValue);
+	if (bFinalHasStart) ChangeClientGravity(client, g_fGravityValue);
 }
 
 public Action Finale_Escape_Start(Event event, const char[] name, bool dontBroadcast) 
@@ -346,4 +349,12 @@ void ChangeClientGravity(int client, float GravityValue)
 void PerformGravity(int client, float amount)
 {
 	SetEntityGravity(client, amount);
+}
+
+public Action Timer_SetGravity(Handle Timer, int client)
+{
+	if(!bFinalHasStart) return Plugin_Stop;
+
+	ChangeAllClientGravity(g_fGravityValue);
+	return Plugin_Continue;
 }

@@ -28,5 +28,8 @@ l4d_final_rescue_gravity_modes_tog "0"
 // Set Gravity value. (1.0=Normal, >1.0=High, <1.0=Low)
 l4d_final_rescue_gravity_value "0.25"
 
+// Interval (in sec.) to set gravity for client
+l4d_final_rescue_gravity_interval "2"
+
 
 
