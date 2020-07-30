@@ -12,7 +12,7 @@
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
-#define PLUGIN_VERSION 				"2.2"
+#define PLUGIN_VERSION 				"2.3"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -127,7 +127,6 @@ public void OnPluginEnd()
 public void OnMapStart()
 {
 	GetCurrentMap(gMapName, sizeof(gMapName));
-	//FindLocationStart()
 	TweakSettings();
 }
 
@@ -170,7 +169,7 @@ public Action JoinTeam(int client,int args)
 	if(GetClientTeam(client) == TEAM_INFECTED)
 	{
 		ChangeClientTeam(client, TEAM_SPECTATORS);
-		CreateTimer(1.0, Timer_AutoJoinTeam, client)	;	
+		CreateTimer(1.0, Timer_AutoJoinTeam, GetClientUserId(client))	;	
 		return Plugin_Handled;
 	}
 
@@ -201,7 +200,7 @@ public Action JoinTeam(int client,int args)
 			else 
 			{
 				SpawnFakeClient();
-				CreateTimer(1.0, Timer_AutoJoinTeam, client, TIMER_REPEAT)	;			
+				CreateTimer(1.0, Timer_AutoJoinTeam, GetClientUserId(client), TIMER_REPEAT)	;			
 			}
 		}
 		else
@@ -214,11 +213,12 @@ public Action JoinTeam(int client,int args)
 ////////////////////////////////////
 public void evtPlayerActivate(Event event, const char[] name, bool dontBroadcast) 
 {
-	int client = GetClientOfUserId(event.GetInt("userid"));
+	int userid = event.GetInt("userid");
+	int client = GetClientOfUserId(userid);
 	if(client)
 	{
 		if((GetClientTeam(client) != TEAM_INFECTED) && (GetClientTeam(client) != TEAM_SURVIVORS) && !IsFakeClient(client) && !IsClientIdle(client))
-			CreateTimer(DELAY_CHANGETEAM_NEWPLAYER, Timer_AutoJoinTeam, client, TIMER_REPEAT);
+			CreateTimer(DELAY_CHANGETEAM_NEWPLAYER, Timer_AutoJoinTeam, userid, TIMER_REPEAT);
 	}
 }
 
@@ -241,9 +241,9 @@ public void evtPlayerTeam(Event event, const char[] name, bool dontBroadcast)
 						{
 							//LogMessage("afk player %N changes team or leaves the game, his bot is %N",client,i);
 							if(!bLeftSafeRoom)
-								CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, i);
+								CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, GetClientUserId(i));
 							else
-								CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, i);
+								CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, GetClientUserId(i));
 						}
 					}
 				}
@@ -282,25 +282,27 @@ public void evtFinaleVehicleLeaving(Event event, const char[] name, bool dontBro
 
 public void evtBotReplacedPlayer(Event event, const char[] name, bool dontBroadcast) 
 {
-	int fakebot = GetClientOfUserId(event.GetInt("bot"));
+	int fakebotid = event.GetInt("bot");
+	int fakebot = GetClientOfUserId(fakebotid);
 	if(fakebot && GetClientTeam(fakebot) == TEAM_SURVIVORS && IsFakeClient(fakebot))
 	{
 		if(!bLeftSafeRoom)
-			CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, fakebot);
+			CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, fakebotid);
 		else
-			CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, fakebot);
+			CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, fakebotid);
 	}
 }
 
 public void evtPlayerSpawn(Event event, const char[] name, bool dontBroadcast) 
 {
-	int client = GetClientOfUserId(event.GetInt("userid"));
+	int userid = event.GetInt("userid");
+	int client = GetClientOfUserId(userid);
 	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
 	{
 		if(!bLeftSafeRoom)
-			CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, client);
+			CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, userid);
 		else
-			CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, client);
+			CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, userid);
 	}
 
 	if( g_iPlayerSpawn == 0 && g_iRoundStart == 1 )
@@ -310,13 +312,14 @@ public void evtPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 
 public void evtPlayerDeath(Event event, const char[] name, bool dontBroadcast) 
 {
-	int client = GetClientOfUserId(event.GetInt("userid"));
+	int userid = event.GetInt("userid");
+	int client = GetClientOfUserId(userid);
 	if(client && GetClientTeam(client) == TEAM_SURVIVORS && IsFakeClient(client))
 	{
 		if(!bLeftSafeRoom)
-			CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, client);
+			CreateTimer(DELAY_KICK_NONEEDBOT_SAFE, Timer_KickNoNeededBot, userid);
 		else
-			CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, client);
+			CreateTimer(DELAY_KICK_NONEEDBOT, Timer_KickNoNeededBot, userid);
 	}	
 }
 
@@ -406,42 +409,45 @@ public Action Timer_KillSurvivor(Handle timer, int client)
 	}
 }
 
-public Action Timer_AutoJoinTeam(Handle timer, int client)
+public Action Timer_AutoJoinTeam(Handle timer, int userid)
 {
-	if(!IsClientConnected(client))
+	int client = GetClientOfUserId(userid);
+
+	if(!client || !IsClientConnected(client) || !IsClientInGame(client))
 		return Plugin_Stop;
 	
-	if(IsClientInGame(client))
-	{
-		if(GetClientTeam(client) == TEAM_SURVIVORS)
-			return Plugin_Stop;
-		if(IsClientIdle(client))
-			return Plugin_Stop;
-		
-		JoinTeam(client, 0);
-	}
+	if(GetClientTeam(client) == TEAM_SURVIVORS)
+		return Plugin_Stop;
+	
+	if(IsClientIdle(client))
+		return Plugin_Stop;
+	
+	JoinTeam(client, 0);
+
 	return Plugin_Continue;
 }
 
-public Action Timer_KickNoNeededBot(Handle timer, int bot)
+public Action Timer_KickNoNeededBot(Handle timer, int botid)
 {
+	int botclient = GetClientOfUserId(botid);
+
 	if((TotalSurvivors() <= iMaxSurvivors))
 		return Plugin_Handled;
 	
-	if(IsClientConnected(bot) && IsClientInGame(bot) && IsFakeClient(bot))
+	if(botclient && IsClientConnected(botclient) && IsClientInGame(botclient) && IsFakeClient(botclient))
 	{
-		if(GetClientTeam(bot) != TEAM_SURVIVORS)
+		if(GetClientTeam(botclient) != TEAM_SURVIVORS)
 			return Plugin_Handled;
 		
 		char BotName[100];
-		GetClientName(bot, BotName, sizeof(BotName))	;			
+		GetClientName(botclient, BotName, sizeof(BotName))	;			
 		if(StrEqual(BotName, "FakeClient", true))
 			return Plugin_Handled;
 		
-		if(!HasIdlePlayer(bot))
+		if(!HasIdlePlayer(botclient))
 		{
-			//StripWeapons(bot);
-			KickClient(bot, "Kicking No Needed Bot");
+			//StripWeapons(botclient);
+			KickClient(botclient, "Kicking No Needed Bot");
 		}
 	}	
 	return Plugin_Handled;
