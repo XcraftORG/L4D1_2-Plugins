@@ -12,7 +12,7 @@
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
-#define PLUGIN_VERSION 				"2.3"
+#define PLUGIN_VERSION 				"2.4"
 #define CVAR_FLAGS					FCVAR_NOTIFY
 #define DELAY_KICK_FAKECLIENT 		0.1
 #define DELAY_KICK_NONEEDBOT 		5.0
@@ -30,8 +30,9 @@ int iMaxSurvivors,iTime;
 bool L4D2Version;
 char gMapName[128];
 static Handle hSetHumanSpec;
+static Handle hTakeOver;
 int g_iRoundStart,g_iPlayerSpawn ;
-bool bKill, bLeftSafeRoom;
+bool bKill, bLeftSafeRoom, bFinalHasStart;
 Handle timer_SpecCheck = null;
 Handle PlayerLeftStartTimer = null;
 
@@ -88,7 +89,8 @@ public void OnPluginStart()
 	HookEvent("mission_lost", Event_RoundEnd); //戰役滅團重來該關卡的時候 (之後有觸發round_end)
 	HookEvent("finale_vehicle_leaving", Event_RoundEnd); //救援載具離開之時  (沒有觸發round_end)
 	HookEvent("finale_vehicle_leaving", evtFinaleVehicleLeaving);
-	
+	HookEvent("finale_start", OnFinaleStart_Event, EventHookMode_PostNoCopy);
+
 	// Create or execute plugin configuration file
 	AutoExecConfig(true, "l4dmultislots");
 
@@ -107,14 +109,20 @@ public void OnPluginStart()
 	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "SetHumanSpec");
 	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
 	hSetHumanSpec = EndPrepSDKCall();
-	
 	if (hSetHumanSpec == null)
 	{
 		SetFailState("Cant initialize SetHumanSpec SDKCall");
 		return;
 	}
-
-	
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "TakeOverBot");
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
+	hTakeOver = EndPrepSDKCall();
+	if( hTakeOver == null)
+	{
+		SetFailState("Could not prep the \"TakeOverBot\" function.");
+		return;
+	}
 	delete hGameConf;
 }
 
@@ -169,7 +177,7 @@ public Action JoinTeam(int client,int args)
 	if(GetClientTeam(client) == TEAM_INFECTED)
 	{
 		ChangeClientTeam(client, TEAM_SPECTATORS);
-		CreateTimer(1.0, Timer_AutoJoinTeam, GetClientUserId(client))	;	
+		CreateTimer(1.0, Timer_AutoJoinTeam, GetClientUserId(client));	
 		return Plugin_Handled;
 	}
 
@@ -186,7 +194,7 @@ public Action JoinTeam(int client,int args)
 	}
 	else if(IsClientIdle(client))
 	{
-		PrintHintText(client, "你正在閒置. 請按滑鼠加入倖存者");
+		PrintHintText(client, "你正在閒置. 請按滑鼠左鍵加入倖存者!");
 	}
 	else
 	{			
@@ -194,17 +202,27 @@ public Action JoinTeam(int client,int args)
 		{
 			if(bKill && iTime > 0) 
 			{
-				ChangeClientTeam(client, TEAM_SURVIVORS);
-				CreateTimer(0.1, Timer_KillSurvivor, client);
+				if(bFinalHasStart) //don't let player die in saferoom after final starts, this prevents some issue in final map
+				{
+					SpawnFakeClient();
+					CreateTimer(0.5, Timer_TakeOverBotAndDie, GetClientUserId(client));
+				}
+				else
+				{
+					ChangeClientTeam(client, TEAM_SURVIVORS);
+					CreateTimer(0.1, Timer_KillSurvivor, client);
+				}
 			}
 			else 
 			{
 				SpawnFakeClient();
-				CreateTimer(1.0, Timer_AutoJoinTeam, GetClientUserId(client), TIMER_REPEAT)	;			
+				CreateTimer(0.5, Timer_AutoJoinTeam, GetClientUserId(client))	;			
 			}
 		}
 		else
+		{
 			TakeOverBot(client);
+		}
 	}
 	return Plugin_Handled;
 }
@@ -218,7 +236,7 @@ public void evtPlayerActivate(Event event, const char[] name, bool dontBroadcast
 	if(client)
 	{
 		if((GetClientTeam(client) != TEAM_INFECTED) && (GetClientTeam(client) != TEAM_SURVIVORS) && !IsFakeClient(client) && !IsClientIdle(client))
-			CreateTimer(DELAY_CHANGETEAM_NEWPLAYER, Timer_AutoJoinTeam, userid, TIMER_REPEAT);
+			CreateTimer(DELAY_CHANGETEAM_NEWPLAYER, Timer_AutoJoinTeam, userid);
 	}
 }
 
@@ -323,14 +341,6 @@ public void evtPlayerDeath(Event event, const char[] name, bool dontBroadcast)
 	}	
 }
 
-void ClearDefault()
-{
-	g_iRoundStart = 0;
-	g_iPlayerSpawn = 0;
-	bKill = false;
-	bLeftSafeRoom = false;
-}
-
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	ClearDefault();
@@ -339,11 +349,16 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 
 public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 {
+	bFinalHasStart = false;
 	if( g_iPlayerSpawn == 1 && g_iRoundStart == 0 )
 		CreateTimer(0.5, PluginStart);
 	g_iRoundStart = 1;
 }
 
+public Action OnFinaleStart_Event(Event event, const char[] name, bool dontBroadcast)
+{
+	bFinalHasStart = true;
+}
 ////////////////////////////////////
 // timers
 ////////////////////////////////////
@@ -405,8 +420,28 @@ public Action Timer_KillSurvivor(Handle timer, int client)
 {
 	if(client && IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client))
 	{
+		StripWeapons(client);
 		ForcePlayerSuicide(client);
 	}
+}
+
+public Action Timer_TakeOverBotAndDie(Handle timer, int userid)
+{
+	int client = GetClientOfUserId(userid);
+	if (!client || !IsClientInGame(client)) return;
+	if (GetClientTeam(client) == TEAM_SURVIVORS) return;
+	if (IsFakeClient(client)) return;
+
+	int fakebot = FindBotToTakeOver(true);
+	if (fakebot == 0)
+	{
+		PrintHintText(client, "沒有倖存者Bot能取代.");
+		return;
+	}
+
+	SDKCall(hSetHumanSpec, fakebot, client);
+	SDKCall(hTakeOver, client, true);
+	CreateTimer(0.1, Timer_KillSurvivor, client);
 }
 
 public Action Timer_AutoJoinTeam(Handle timer, int userid)
@@ -414,17 +449,15 @@ public Action Timer_AutoJoinTeam(Handle timer, int userid)
 	int client = GetClientOfUserId(userid);
 
 	if(!client || !IsClientConnected(client) || !IsClientInGame(client))
-		return Plugin_Stop;
+		return;
 	
 	if(GetClientTeam(client) == TEAM_SURVIVORS)
-		return Plugin_Stop;
+		return;
 	
 	if(IsClientIdle(client))
-		return Plugin_Stop;
+		return;
 	
 	JoinTeam(client, 0);
-
-	return Plugin_Continue;
 }
 
 public Action Timer_KickNoNeededBot(Handle timer, int botid)
@@ -465,6 +498,15 @@ public Action Timer_KickFakeBot(Handle timer, int fakeclient)
 ////////////////////////////////////
 // stocks
 ////////////////////////////////////
+void ClearDefault()
+{
+	g_iRoundStart = 0;
+	g_iPlayerSpawn = 0;
+	bKill = false;
+	bLeftSafeRoom = false;
+}
+
+
 stock void TweakSettings()
 {
 	Handle hMaxSurvivorsLimitCvar = FindConVar("survivor_limit");
@@ -482,9 +524,8 @@ stock void TakeOverBot(int client)
 	if (IsFakeClient(client)) return;
 
 	int fakebot = FindBotToTakeOver(true);
-	if (fakebot ==0)
+	if (fakebot == 0)
 	{
-		fakebot = FindBotToTakeOver(false);
 		PrintHintText(client, "沒有倖存者Bot能取代.");
 		return;
 	}
