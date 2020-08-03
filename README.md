@@ -2,9 +2,8 @@
 Help server to record, make server more fun, and more useful plugins for adm.
 > All plugins in here apply to both L4D1/2 (last edited:2020/8/2)
 # Require
-* Clean Servers:
-  * [Sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) (or newer), [Metamod](https://www.metamodsource.net/downloads.php?branch=stable)
-* <b>[GameRules Prop Hax](https://forums.alliedmods.net/showthread.php?t=154217)</b>
+* [Sourcemod 1.9](https://www.sourcemod.net/downloads.php?branch=1.9-dev) (or newer)
+
 # Plugins
 * <b>l4d_afk_commands</b>: Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse.
 * <b>l4d_DynamicHostname</b>: Show what mode is it now on server name(support any Language) with txt file.
