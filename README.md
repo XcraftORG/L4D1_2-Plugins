@@ -2,7 +2,7 @@
 Help server to record, make server more fun, and more useful plugins for adm.
 > All plugins in here apply to both L4D1/2 (last edited:2020/8/2)
 # Require
-* [Sourcemod 1.10](https://www.sourcemod.net/downloads.php?branch=1.10) (or newer)
+* [Sourcemod 1.10](https://www.sourcemod.net/downloads.php?branch=1.10-dev) (or newer)
 
 # Plugins
 * <b>l4d_afk_commands</b>: Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse.
