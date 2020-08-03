@@ -101,14 +101,14 @@ public void OnPluginStart()
 	HookEvent("player_spawn",		Event_PlayerSpawn,	EventHookMode_PostNoCopy);
 
 	// Afk manager time limits
-	h_AfkWarnSpecTime = CreateConVar("l4d_specafk_warnspectime", "20", "Warn time before spec", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkSpecTime = CreateConVar("l4d_specafk_spectime", "15", "time before spec (after warn)", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkWarnKickTime = CreateConVar("l4d_specafk_warnkicktime", "60", "Warn time before kick (while already on spec)", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkKickTime = CreateConVar("l4d_specafk_kicktime", "30", "time before kick (while already on spec after warn)", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkCheckInterval = CreateConVar("l4d_specafk_checkinteral", "1", "Check/warn interval", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "1", "If kick enabled on afk while on spec", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkSpecOnConnect = CreateConVar("l4d_specafk_speconconnect", "0", "If player will be forced to spectate on connect", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkShowTeamPanel = CreateConVar("l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkWarnSpecTime = CreateConVar("l4d_specafk_warnspectime", "20", "Warn time before spec", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkSpecTime = CreateConVar("l4d_specafk_spectime", "15", "time before spec (after warn)", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkWarnKickTime = CreateConVar("l4d_specafk_warnkicktime", "60", "Warn time before kick (while already on spec)", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkKickTime = CreateConVar("l4d_specafk_kicktime", "30", "time before kick (while already on spec after warn)", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkCheckInterval = CreateConVar("l4d_specafk_checkinteral", "1", "Check/warn interval", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "1", "If kick enabled on afk while on spec", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkSpecOnConnect = CreateConVar("l4d_specafk_speconconnect", "0", "If player will be forced to spectate on connect", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
+	h_AfkShowTeamPanel = CreateConVar("l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	
 	// Hook cvars changes ...
 	h_AfkWarnSpecTime.AddChangeHook(ConVarChanged);
@@ -121,7 +121,7 @@ public void OnPluginStart()
 	h_AfkShowTeamPanel.AddChangeHook(ConVarChanged);
 	
 	// We register the version cvar
-	CreateConVar("l4d_specafk_version", PLUGIN_VERSION, "Version of L4D VS Auto spectate on AFK", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY);
+	CreateConVar("l4d_specafk_version", PLUGIN_VERSION, "Version of L4D VS Auto spectate on AFK", FCVAR_SPONLY|FCVAR_NOTIFY);
 	
 	// We tweak some settings ..
 	SetConVarInt(FindConVar("vs_max_team_switches"), 9999); // so that players can switch multiple times
@@ -193,7 +193,7 @@ public bool OnClientConnect(int client)
 
 public bool IsValidClient (int client)
 {
-	if ((client >= 1) && (client <= GetMaxClients()))
+	if (client > 0 && client <= MaxClients)
 		return true;
 	else
 	return false;
@@ -263,6 +263,7 @@ public Action Event_PlayerSpawn(Event event, const char[] name, bool dontBroadca
 
 public Action tmrStart(Handle timer)
 {
+	ResetPlugin();
 	// We start the AFK manager
 	if(!afkManager_Active)
 	{
@@ -418,13 +419,12 @@ public Action afkCheckThread(Handle timer)
 	if (!afkManager_Active)
 		return Plugin_Stop;
 		
-	int count = GetMaxClients();
 	int i;
 	float pos[3];
 	float eyes[3];
 	
 	// we check all connected (and alive) clients ...
-	for (i=1;i<=count;i++)
+	for (i=1;i<=MaxClients;i++)
 	{
 		if (IsClientConnected(i) && (!IsFakeClient(i)) && IsClientInGame(i))
 		{
