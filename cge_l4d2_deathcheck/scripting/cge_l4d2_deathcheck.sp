@@ -198,18 +198,13 @@ public Action Timer_DeathCheck(Handle timer)
 			}
 		}
 		
-		//PrintToChatAll("%i survivors remaining.", survivors);
-		
 		if (survivors < 1)
 		{
-			//PrintToChatAll("Everyone is dead. Ending the round.");
 			int oldFlags = GetCommandFlags("scenario_end");
 			SetCommandFlags("scenario_end", oldFlags & ~(FCVAR_CHEAT|FCVAR_DEVELOPMENTONLY));
 			ServerCommand("scenario_end");
 			ServerExecute();
 			SetCommandFlags("scenario_end", oldFlags);
-
-			LogMessage("Round EndDDDDDDDDDDDDDDDDDDDD");
 		}
 	}
 }
