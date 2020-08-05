@@ -7,7 +7,7 @@ public Plugin myinfo = {
     name = "[L4D, L4D2] No Death Check Until Dead", 
     author = "chinagreenelvis, Harry", 
     description = "Prevents mission loss until all players have died.", 
-    version = "1.7", 
+    version = "1.8", 
     url = "https://forums.alliedmods.net/showthread.php?t=142432" 
 }; 
 
@@ -113,6 +113,8 @@ public void OnMapEnd()
 {
 	ResetPlugin();
 	ResetTimer();
+	bLeftSafeRoom = false;
+	director_no_death_check.SetInt(0);
 }
 
 public void OnClientDisconnect()
@@ -167,6 +169,7 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	ResetPlugin();
 	ResetTimer();
+	bLeftSafeRoom = false;
 }
 
 public void Event_DeathCheck(Event event, const char[] name, bool dontBroadcast)
@@ -205,6 +208,8 @@ public Action Timer_DeathCheck(Handle timer)
 			ServerCommand("scenario_end");
 			ServerExecute();
 			SetCommandFlags("scenario_end", oldFlags);
+
+			LogMessage("Round EndDDDDDDDDDDDDDDDDDDDD");
 		}
 	}
 }
@@ -213,7 +218,7 @@ stock bool IsValidSurvivor(int client)
 {
 	if (!client) return false;
 	if (!IsClientInGame(client)) return false;
-	if (!deathcheck_bots.BoolValue)
+	if (!g_bDeathcheck_bots)
 	{
 		if (IsFakeClient(client)) return false;
 	}
