@@ -117,16 +117,6 @@ public void OnMapEnd()
 	director_no_death_check.SetInt(0);
 }
 
-public void OnClientDisconnect()
-{ 
-	DeathCheck();
-}
-
-public void OnClientDisconnect_Post()
-{
-	DeathCheck();
-}
-
 public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast) 
 {
 	bLeftSafeRoom = false;
@@ -174,20 +164,12 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 
 public void Event_DeathCheck(Event event, const char[] name, bool dontBroadcast)
 {  
-	DeathCheck();
+	CreateTimer(3.0, Timer_DeathCheck);
 }  
-
-void DeathCheck()
-{
-	if (bLeftSafeRoom == true)
-	{
-		CreateTimer(3.0, Timer_DeathCheck);
-	}
-}
 
 public Action Timer_DeathCheck(Handle timer)
 {
-	if (g_bCvarAllow)
+	if (g_bCvarAllow && bLeftSafeRoom)
 	{
 		int survivors = 0;
 		for (int i = 1; i <= MaxClients; i++) 
