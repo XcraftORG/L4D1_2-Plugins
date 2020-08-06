@@ -1,6 +1,6 @@
 # L4D1&2-Plugins  by Harry Potter
 Help server to record, make server more fun, and more useful plugins for adm.
-> All plugins in here apply to both L4D1/2 (last edited:2020/8/6)
+> All plugins in here apply to both L4D1/2 (last edited:2020/8/7)
 # Require
 * [Sourcemod 1.10](https://www.sourcemod.net/downloads.php?branch=1.10-dev) (or newer)
 * [Metamod 1.10](https://www.sourcemm.net/downloads.php?branch=1.10-dev) (or newer)
@@ -20,7 +20,6 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>SpeakingList</b>: Voice Announce. Print To Center Message who Speaking. With cookies.
 * <b>l4d_spectator_prefix</b>: when player in spec team, add prefix.
 * <b>bequiet</b>: Please be Quiet! Block unnecessary chat or announcement.
-* <b>vote_custom_campaigns</b>: Vote for custom campaign.
 * <b>l4d_sm_respawn</b>: Let's you respawn Players by console.
 * <b>firebulletsfix</b>: Fixes shooting/bullet displacement by 1 tick problems so you can accurately hit by moving.
 * <b>linux_auto_restart</b>: make linux auto restart server when the last player disconnects from the server.
@@ -39,6 +38,7 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>clear_weapon_drop</b>: Clear drop items, non-death drops
 * <b>l4d_final_rescue_gravity</b>: Set client gravity after final rescue starts just for fun.
 * <b>l4dinfectedbots</b>: Spawns infected bots in versus, allows playable special infected in coop/survival, and changable S.I. limit
+* <b>l4d_votes_5</b>: L4D1/2 Vote Menu (Change map、Kick、Restart、Give HP、Alltalk)
 # Scripting Compiler
 * [sourcemod 1.8 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.8_Compiler.zip): sourcemod v1.8.0.5977 scripting
 * [sourcemod 1.10 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.10_Compiler.zip): most of new source codes
