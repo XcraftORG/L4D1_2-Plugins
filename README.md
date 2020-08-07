@@ -1,6 +1,6 @@
 # L4D1&2-Plugins  by Harry Potter
 Help server to record, make server more fun, and more useful plugins for adm.
-> All plugins in here apply to both L4D1/2 (last edited:2020/8/7)
+> All plugins in here apply to both L4D1/2 (last edited:2020/8/8)
 # Require
 * [Sourcemod 1.10](https://www.sourcemod.net/downloads.php?branch=1.10-dev) (or newer)
 * [Metamod 1.10](https://www.sourcemm.net/downloads.php?branch=1.10-dev) (or newer)
@@ -40,9 +40,10 @@ Help server to record, make server more fun, and more useful plugins for adm.
 * <b>l4d_final_rescue_gravity</b>: Set client gravity after final rescue starts just for fun.
 * <b>l4dinfectedbots</b>: Spawns infected bots in versus, allows playable special infected in coop/survival, and changable S.I. limit
 * <b>l4d_votes_5</b>: L4D1/2 Vote Menu (Change map、Kick、Restart、Give HP、Alltalk)
+* <b>vocal_block</b>: Blocks the stupid griefers who spam vocalize commands throughout campaigns.
 # Scripting Compiler
 * [sourcemod 1.8 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.8_Compiler.zip): sourcemod v1.8.0.5977 scripting
-* [sourcemod 1.10 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.10_Compiler.zip): most of new source codes
+* [sourcemod 1.10 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.10_Compiler.zip): sourcemod v1.10.0.6492 scripting
 # Others
 * <b>[L4D1-Competitive-Plugins](https://github.com/fbef0102/L4D1-Competitive-Plugins)</b>
 * <b>[L4D2-Plugins](https://github.com/fbef0102/L4D2-Plugins)</b>
