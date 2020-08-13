@@ -1,7 +1,7 @@
 Spawns infected bots in versus, allows playable special infected in coop/survival, and changable z_max_player_zombies limit
 
 -Version-
-2.3.6
+2.3.7
 
 -Require-
 sourcemod 1.10 or above
