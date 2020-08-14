@@ -8,6 +8,11 @@
 * Purpose	: This plugin spawns infected bots in L4D1/2, and gives greater control of the infected bots in L4D1/L4D2.
 * WARNING	: Please use sourcemod's latest 1.10 branch snapshot. 
 * REQUIRE	: left4dhooks (https://forums.alliedmods.net/showthread.php?p=2684862)
+* Version 2.3.8
+*	   - Fixed Native "L4D2_SpawnWitchBride" was not found in l4d1.
+*	   - Fixed L4D2 ConVars Invalid convar handle in l4d1.
+*	   - Fixed L4D2 ConVars signature not found in l4d1.
+*
 * Version 2.3.7
 *	   - Fixed Wrong Zombie Class.
 *	   - prevent memory leak handle and timer.
@@ -536,8 +541,9 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <multicolors>
+#undef REQUIRE_PLUGIN
 #include <left4dhooks>
-#define PLUGIN_VERSION "2.3.7"
+#define PLUGIN_VERSION "2.3.8"
 #define DEBUG 0
 
 #define TEAM_SPECTATOR		1
@@ -999,32 +1005,35 @@ public void OnPluginStart()
 		if (hCreateHunter == null)
 			SetFailState("Cannot initialize NextBotCreatePlayerBot<Hunter> SDKCall, signature is broken.") ;
 
-		StartPrepSDKCall(SDKCall_Static);
-		if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Spitter>"))
-			SetFailState("Unable to find NextBotCreatePlayerBot<Spitter> signature in gamedata file.");
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		hCreateSpitter = EndPrepSDKCall();
-		if (hCreateSpitter == null)
-			SetFailState("Cannot initialize NextBotCreatePlayerBot<Spitter> SDKCall, signature is broken.") ;
+		if(L4D2Version)
+		{
+			StartPrepSDKCall(SDKCall_Static);
+			if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Spitter>"))
+				SetFailState("Unable to find NextBotCreatePlayerBot<Spitter> signature in gamedata file.");
+			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+			PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+			hCreateSpitter = EndPrepSDKCall();
+			if (hCreateSpitter == null)
+				SetFailState("Cannot initialize NextBotCreatePlayerBot<Spitter> SDKCall, signature is broken.") ;
 
-		StartPrepSDKCall(SDKCall_Static);
-		if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Jockey>"))
-			SetFailState("Unable to find NextBotCreatePlayerBot<Jockey> signature in gamedata file.");
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		hCreateJockey = EndPrepSDKCall();
-		if (hCreateJockey == null)
-			SetFailState("Cannot initialize NextBotCreatePlayerBot<Jockey> SDKCall, signature is broken.") ;
+			StartPrepSDKCall(SDKCall_Static);
+			if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Jockey>"))
+				SetFailState("Unable to find NextBotCreatePlayerBot<Jockey> signature in gamedata file.");
+			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+			PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+			hCreateJockey = EndPrepSDKCall();
+			if (hCreateJockey == null)
+				SetFailState("Cannot initialize NextBotCreatePlayerBot<Jockey> SDKCall, signature is broken.") ;
 
-		StartPrepSDKCall(SDKCall_Static);
-		if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Charger>"))
-			SetFailState("Unable to find NextBotCreatePlayerBot<Charger> signature in gamedata file.");
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		hCreateCharger = EndPrepSDKCall();
-		if (hCreateCharger == null)
-			SetFailState("Cannot initialize NextBotCreatePlayerBot<Charger> SDKCall, signature is broken.") ;
+			StartPrepSDKCall(SDKCall_Static);
+			if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Charger>"))
+				SetFailState("Unable to find NextBotCreatePlayerBot<Charger> signature in gamedata file.");
+			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+			PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+			hCreateCharger = EndPrepSDKCall();
+			if (hCreateCharger == null)
+				SetFailState("Cannot initialize NextBotCreatePlayerBot<Charger> SDKCall, signature is broken.") ;
+		}
 
 		StartPrepSDKCall(SDKCall_Static);
 		if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Tank>"))
@@ -1062,9 +1071,12 @@ void GetCvars()
 	g_iBoomerLimit = h_BoomerLimit.IntValue;
 	g_iSmokerLimit = h_SmokerLimit.IntValue;
 	g_iHunterLimit = h_HunterLimit.IntValue;
-	g_iSpitterLimit = h_SpitterLimit.IntValue;
-	g_iJockeyLimit = h_JockeyLimit.IntValue;
-	g_iChargerLimit = h_ChargerLimit.IntValue;
+	if(L4D2Version)
+	{
+		g_iSpitterLimit = h_SpitterLimit.IntValue;
+		g_iJockeyLimit = h_JockeyLimit.IntValue;
+		g_iChargerLimit = h_ChargerLimit.IntValue;
+	}
 	g_bSafeSpawn = h_SafeSpawn.BoolValue;
 	g_iTankHealth = h_TankHealth.IntValue;
 	g_iInfectedSpawnTimeMax = h_InfectedSpawnTimeMax.IntValue;
