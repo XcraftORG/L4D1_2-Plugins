@@ -25,9 +25,4 @@
 		"mapinfo"		"wfp1_track"
 		"mapname"		"白森林"
 	}
-	"6"
-	{
-		"mapinfo"		"c1m1_hotel"
-		"mapname"		"死亡中心"
-	}
 }

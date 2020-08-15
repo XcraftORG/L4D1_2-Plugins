@@ -1,9 +1,10 @@
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 #include <sourcemod>
-#include <multicolors>
 #include <sdktools>
-#undef REQUIRE_PLUGIN
+#include <multicolors>
+#include <l4d2_changelevel>
+
 #define SCORE_DELAY_EMPTY_SERVER 3.0
 #define ZOMBIECLASS_SMOKER 1
 #define ZOMBIECLASS_BOOMER 2
@@ -186,8 +187,7 @@ void RestartMapNow()
 	isMapRestartPending = false;
 	char currentMap[256];
 	GetCurrentMap(currentMap, 256);
-	ServerCommand("changelevel %s", currentMap);
-	
+	L4D2_ChangeLevel(currentMap);
 }
 
 public Action event_Round_Start(Event event, const char[] name, bool dontBroadcast) 
