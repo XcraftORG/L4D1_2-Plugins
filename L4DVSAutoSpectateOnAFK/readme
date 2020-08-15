@@ -10,6 +10,7 @@ v1.3.1
 -original plugin from djromero: https://forums.alliedmods.net/showthread.php?p=761203
 
 -Convar-
+cfg\sourcemod\L4DVSAutoSpectateOnAFK.cfg
 // Check/warn interval
 l4d_specafk_checkinteral "1"
 
