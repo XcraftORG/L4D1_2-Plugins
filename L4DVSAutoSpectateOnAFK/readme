@@ -1,13 +1,35 @@
 Forces survivors and infected to spectate if they're AFK after certain time
 
-original plugin from djromero: https://forums.alliedmods.net/showthread.php?p=761203
+-ChangeLog-
+v1.9
+-Remake Code
+-add more hints
+-fixed wrong timer
 
--convars-
-"l4d_specafk_warnspectime", "20", "Warn time before spec"
-"l4d_specafk_spectime", "15", "time before spec (after warn)"
-"l4d_specafk_warnkicktime", "60", "Warn time before kick (while already on spec)"
-"l4d_specafk_kicktime", "30", "time before kick (while already on spec after warn)"
-"l4d_specafk_checkinteral", "1", "Check/warn interval"
-"l4d_specafk_kickenabled", "1", "If kick enabled on afk while on spec"
-"l4d_specafk_speconconnect", "0", "If player will be forced to spectate on connect"
-"l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players"
+v1.3.1
+-original plugin from djromero: https://forums.alliedmods.net/showthread.php?p=761203
+
+-Convar-
+// Check/warn interval
+l4d_specafk_checkinteral "1"
+
+// If kick enabled on afk while on spec
+l4d_specafk_kickenabled "1"
+
+// time before kick (while already on spec after warn)
+l4d_specafk_kicktime "30"
+
+// If player will be forced to spectate on connect
+l4d_specafk_speconconnect "0"
+
+// time before spec (after warn)
+l4d_specafk_spectime "15"
+
+// Version of L4D VS Auto spectate on AFK
+l4d_specafk_version "1.9"
+
+// Warn time before kick (while already on spec)
+l4d_specafk_warnkicktime "60"
+
+// Warn time before spec
+l4d_specafk_warnspectime "20"

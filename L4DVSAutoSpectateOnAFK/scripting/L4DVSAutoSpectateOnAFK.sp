@@ -1,7 +1,7 @@
 /********************************************************************************************
 * Plugin	: L4DVSAutoSpectateOnAFK
-* Version	: 1.8
-* Game		: Left 4 Dead 
+* Version	: 1.9
+* Game		: Left 4 Dead 1/2
 * Author	: djromero (SkyDavid, David) & Harry
 * Testers	: Myself
 * Website	: www.sky.zebgames.com
@@ -14,7 +14,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdktools_functions>
-#define PLUGIN_VERSION "1.8"
+#define PLUGIN_VERSION "1.9"
 
 
 // For cvars
@@ -25,7 +25,6 @@ ConVar h_AfkKickTime;
 ConVar h_AfkCheckInterval;
 ConVar h_AfkKickEnabled;
 ConVar h_AfkSpecOnConnect;
-ConVar h_AfkShowTeamPanel;
 int afkWarnSpecTime;
 int afkSpecTime;
 int afkWarnKickTime;
@@ -33,7 +32,6 @@ int afkKickTime;
 int afkCheckInterval;
 bool afkKickEnabled;
 bool afkSpecOnConnect;
-bool afkShowTeamPanel;
 
 
 // work variables
@@ -50,7 +48,7 @@ Handle PlayerLeftStartTimer = null;
 
 public Plugin myinfo = 
 {
-	name = "[L4D] VS Auto-spectate on AFK",
+	name = "[L4D1/2] VS Auto-spectate on AFK",
 	author = "djromero (SkyDavid, David Romero) & Harry",
 	description = "Auto-spectate for AFK players on VS mode",
 	version = PLUGIN_VERSION,
@@ -108,8 +106,7 @@ public void OnPluginStart()
 	h_AfkCheckInterval = CreateConVar("l4d_specafk_checkinteral", "1", "Check/warn interval", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkKickEnabled = CreateConVar("l4d_specafk_kickenabled", "1", "If kick enabled on afk while on spec", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
 	h_AfkSpecOnConnect = CreateConVar("l4d_specafk_speconconnect", "0", "If player will be forced to spectate on connect", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	h_AfkShowTeamPanel = CreateConVar("l4d_specafk_showteampanel", "0", "If team panel will be showed to connecting players", FCVAR_SPONLY|FCVAR_NOTIFY, false, 0.0, false, 0.0);
-	
+
 	// Hook cvars changes ...
 	h_AfkWarnSpecTime.AddChangeHook(ConVarChanged);
 	h_AfkSpecTime.AddChangeHook(ConVarChanged);
@@ -118,7 +115,6 @@ public void OnPluginStart()
 	h_AfkCheckInterval.AddChangeHook(ConVarChanged);
 	h_AfkKickEnabled.AddChangeHook(ConVarChanged);
 	h_AfkSpecOnConnect.AddChangeHook(ConVarChanged);
-	h_AfkShowTeamPanel.AddChangeHook(ConVarChanged);
 	
 	// We register the version cvar
 	CreateConVar("l4d_specafk_version", PLUGIN_VERSION, "Version of L4D VS Auto spectate on AFK", FCVAR_SPONLY|FCVAR_NOTIFY);
@@ -150,7 +146,6 @@ public void ReadCvars()
 	afkCheckInterval = h_AfkCheckInterval.IntValue;
 	afkKickEnabled = h_AfkKickEnabled.BoolValue;
 	afkSpecOnConnect = h_AfkSpecOnConnect.BoolValue;
-	afkShowTeamPanel = h_AfkShowTeamPanel.BoolValue;
 }
 
 public void ConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -346,7 +341,7 @@ public Action ClientReallyChangeTeam(Handle timer, int victim)
 public Action afkJoinHint (Handle Timer, int client)
 {
 	// If player is valid
-	if ((client > 0) && IsClientConnected(client) && IsClientInGame(client))
+	if ((client > 0) && IsClientConnected(client) && IsClientInGame(client) && afkPlayerTimeLeftWarn[client] > 0)
 	{
 		// If player is still on spectators ...
 		if (GetClientTeam(client) == 1)
@@ -367,7 +362,7 @@ void afkResetTimers (int client)
 		return;
 	
 	// if client is valid ...
-	if ((!IsClientConnected(client))||(!IsClientInGame(client))||(IsFakeClient(client)))
+	if (!IsClientConnected(client)||!IsClientInGame(client)||IsFakeClient(client))
 		return;
 	
 	
@@ -473,7 +468,7 @@ public Action afkCheckThread(Handle timer)
 									{
 										// we force the player to spectate
 										afkForceSpectate(i, true, false);
-										
+
 										// reset the timers
 										afkResetTimers(i);
 									}
@@ -532,6 +527,9 @@ public Action afkCheckThread(Handle timer)
 							{
 								// we kick the player
 								afkKickClient(i);
+
+								// reset the timers
+								afkResetTimers(i);
 							}
 							else // We warn him that he will be kicked ...
 							{
@@ -579,16 +577,6 @@ void afkForceSpectate (int client, bool advertise, bool self)
 	// We force him to spectate
 	ChangeClientTeam(client, 1);
 	
-	// If team panel is enabled ...
-	if (afkShowTeamPanel)
-	{
-		// we show him the panel ...
-		ClientCommand(client, "chooseteam");
-	}
-	
-	// We send him a hint text ...
-	PrintHintText(client, "輸入!join加入遊戲...");
-	
 	// We send him a hint message 5 seconds later, in case he hasn't joined any team
 	CreateTimer(5.0, afkJoinHint, client);
 	
@@ -633,7 +621,7 @@ void afkKickClient (int client)
 	ChangeClientTeam(client, 1);
 	
 	// Then we kick him
-	KickClient(client, "Kicked because of AFK status");
+	KickClient(client, "(旁觀閒置太久被踢) Kicked because of AFK status");
 	
 	// Print forced info
 	char PlayerName[200];
