@@ -44,6 +44,7 @@ If you want any modify or request, free to use or pay me money to do it.
 * <b>l4d_votes_5</b>: L4D1/2 Vote Menu (Change map、Kick、Restart、Give HP、Alltalk)
 * <b>vocal_block</b>: Blocks the stupid griefers who spam vocalize commands throughout campaigns.
 * <b>no-rushing</b>: Prevents Rushers From Rushing Then Teleports Them Back To Their Teammates.
+* <b>multitanks_a-l4d2</b>: An improved version of the MultiTanks plugin originally created by Red Alex.
 # Scripting Compiler
 * [sourcemod 1.8 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.8_Compiler.zip): sourcemod v1.8.0.5977 scripting
 * [sourcemod 1.10 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.10_Compiler.zip): sourcemod v1.10.0.6492 scripting
