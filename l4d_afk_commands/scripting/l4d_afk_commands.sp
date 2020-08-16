@@ -1,3 +1,6 @@
+/*version: 2.9*/
+//add !zs, "Alive Survivor Suicide Command."
+
 /*version: 2.8*/
 //add three convars
 //"l4d_afk_commands_immue_level", "z", "Access level needed to immune to all limit (Empty = Everyone, -1: Nobody)"
@@ -50,7 +53,7 @@
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
 
-#define PLUGIN_VERSION    "2.8"
+#define PLUGIN_VERSION    "2.9"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -65,7 +68,7 @@
 static const int ARRAY_TEAM = 1;
 static const int ARRAY_COUNT = 2;
 //convar
-ConVar cvarCoolTime, cvarDeadChangeTeamEnable, cvarEnforceTeamSwitch, cvarCommandAccess, 
+ConVar cvarCoolTime, cvarDeadChangeTeamEnable, cvarEnforceTeamSwitch, cvarCommandAccess, cvarSuicideAllow, 
 	cvarImmueAccess, cvarInfectedAttackChangeTeamEnable, cvarWitchAttackChangeTeamEnable;
 ConVar g_hGameMode;
 
@@ -84,7 +87,7 @@ static int clientteam[MAXPLAYERS+1];//玩家換隊成功之後的隊伍
 static float fCoolTime;
 char g_sImmueAcclvl[16], g_sCommandAccesslvl[16];
 bool L4D2Version, bHasLeftSafeRoom;
-bool bDeadChangeTeamEnable, bEnforceTeamSwitch, 
+bool bDeadChangeTeamEnable, bEnforceTeamSwitch, bSuicideAllow,
 	bInfectedAttackerChangeTeamEnable, bWitchAttackChangeTeamEnable;
 int iGameMode;
 static Handle PlayerLeftStartTimer = null; //Detect player has left safe area or not
@@ -93,7 +96,7 @@ public Plugin myinfo =
 {
 	name = PLUGIN_NAME,
 	author = "MasterMe,modify by Harry",
-	description = "Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no change team abuse",
+	description = "Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.), but no change team abuse",
 	version = PLUGIN_VERSION,
 	url = "Harry Potter School"
 };
@@ -170,7 +173,8 @@ public void OnPluginStart()
 	RegConsoleCmd("go_away_from_keyboard", WTF2);
 	
 	RegAdminCmd("sm_swapto", Command_SwapTo, ADMFLAG_BAN, "sm_swapto <player1> [player2] ... [playerN] <teamnum> - swap all listed players to <teamnum> (1,2, or 3)");
-	
+	RegConsoleCmd("sm_zs", ForceSurvivorSuicide, "Alive Survivor Suicide Command.");
+
 	cvarCoolTime = CreateConVar("l4d_afk_commands_changeteam_cooltime", "4.0", "Cold Down Time in seconds a player can't change team again.", FCVAR_NOTIFY, true, 1.0);
 	cvarDeadChangeTeamEnable = CreateConVar("l4d_afk_commands_deadplayer_changeteam_enable", "0", "If 1, Dead Survivor Player can change team? (0:No, 1:Yes)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	cvarEnforceTeamSwitch = CreateConVar("l4d_afk_commands_teamswitch_during_game_enable", "1", "If 1, player can use command to switch team during the game? (0:No, 1:Yes)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
@@ -178,6 +182,7 @@ public void OnPluginStart()
 	cvarInfectedAttackChangeTeamEnable = CreateConVar("l4d_afk_commands_infected_attack_enable", "0", "If 1, player can change team when he is capped by special infected.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	cvarWitchAttackChangeTeamEnable = CreateConVar("l4d_afk_commands_witch_attack_enable", "0", "If 1, player can change team when he is attacked by witch.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	cvarCommandAccess = CreateConVar("l4d_afk_commands_level", "", "Access level needed to use command to switch team. (Empty = Everyone)", FCVAR_NOTIFY);
+	cvarSuicideAllow = CreateConVar("l4d_afk_commands_suicide_allow", "0", "If 1, Allow alive survivor player suicides by using '!zs'", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 
 	GetCvars();
 	g_hGameMode = FindConVar("mp_gamemode");
@@ -189,6 +194,7 @@ public void OnPluginStart()
 	cvarInfectedAttackChangeTeamEnable.AddChangeHook(ConVarChanged_Cvars);
 	cvarWitchAttackChangeTeamEnable.AddChangeHook(ConVarChanged_Cvars);
 	cvarCommandAccess.AddChangeHook(ConVarChanged_Cvars);
+	cvarSuicideAllow.AddChangeHook(ConVarChanged_Cvars);
 	
 	HookEvent("witch_harasser_set", OnWitchWokeup);
 	HookEvent("round_start", Event_RoundStart);
@@ -249,6 +255,34 @@ public Action Command_SwapTo(int client, int args)
 		PrintToChatAll("[SM] %N has been swapped to the %s team.", player_id, L4D_TEAM_NAME(team));
 	}
 	
+	return Plugin_Handled;
+}
+
+public Action ForceSurvivorSuicide(int client, int args)
+{
+	if (bSuicideAllow && client && GetClientTeam(client) == 2 && !IsFakeClient(client) && IsPlayerAlive(client))
+	{
+		if(bHasLeftSafeRoom == false)
+		{
+			PrintHintText(client, "[TS] 尚未離開安全區域禁止自殺. You wish!");
+			return Plugin_Handled;
+		}
+
+		if(L4D2_GetInfectedAttacker(client) != -1)
+		{
+			PrintHintText(client, "[TS] 被控期間禁止自殺. In your dreams!");
+			return Plugin_Handled;
+		}
+		
+		if(clientBusyWitch[client])
+		{
+			PrintHintText(client, "[TS] Witch干擾期間禁止自殺. Not on your life!");
+			return Plugin_Handled;
+		}
+
+		CPrintToChatAll("[{olive}TS{default}] {olive}%N {default}使用指令 {green}!zs{default} 自殺了!",client);
+		ForcePlayerSuicide(client);
+	}
 	return Plugin_Handled;
 }
 
@@ -397,6 +431,7 @@ void GetCvars()
 	bWitchAttackChangeTeamEnable = cvarWitchAttackChangeTeamEnable.BoolValue;
 	cvarImmueAccess.GetString(g_sImmueAcclvl,sizeof(g_sImmueAcclvl));
 	cvarCommandAccess.GetString(g_sCommandAccesslvl,sizeof(g_sCommandAccesslvl));
+	bSuicideAllow = cvarSuicideAllow.BoolValue;
 	CheckSpectatePenalty();
 }
 
@@ -420,7 +455,8 @@ public Action PlayerLeftStart(Handle Timer)
 	if (LeftStartArea())
 	{
 		bHasLeftSafeRoom = true;
-		return Plugin_Handled;
+		PlayerLeftStartTimer = null;
+		return Plugin_Stop;
 	}
 	return Plugin_Continue; 
 }

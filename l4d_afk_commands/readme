@@ -21,11 +21,13 @@ l4d_afk_commands_deadplayer_changeteam_enable "0"
 l4d_afk_commands_immue_level "z"
 
 // If 1, player can change team when he is capped by special infected.
-
 l4d_afk_commands_infected_attack_enable "0"
 
 // Access level needed to use command to switch team. (Empty = Everyone)
-l4d_afk_commands_level "z"
+l4d_afk_commands_level ""
+
+// If 1, Allow alive survivor player suicides by using '!zs'
+l4d_afk_commands_suicide_allow "0"
 
 // If 1, player can use command to switch team during the game? (0:No, 1:Yes)
 l4d_afk_commands_teamswitch_during_game_enable "1"
