@@ -1,6 +1,7 @@
 when player in spec team, add prefix
 
 -Convar-
+cfg\sourcemod\l4d_spectator_prefix.cfg
 // 0=Plugin off, 1=Plugin on.
 l4d_spectator_prefix_allow "1"
 
