@@ -1,46 +1,53 @@
-"Games"
-{
-	"left4dead"
-	{
-		"Signatures"
-		{
-			
-			"SetHumanSpec"
-			{
-				"library"	"server"
-				"linux" "@_ZN11SurvivorBot17SetHumanSpectatorEP13CTerrorPlayer"
-				"windows" "\x53\x8B\xD9\x83\x2A\x2A\x2A\x2A\x2A\x2A\x56\x8D\x2A\x2A\x2A\x2A\x2A\x7E\x07\x5E\x32\xC0\x5B\xC2\x04\x00"
-			}
-			
-			"TakeOverBot"
-			{
-				"library"	"server"
-				"linux"	"@_ZN13CTerrorPlayer11TakeOverBotEb"
-				"windows" "\x81\x2A\x2A\x2A\x2A\x2A\x53\x55\x56\x57\x8D\x2A\x2A\x2A\x8B\xF9\x33\xDB\x50"
-			}
-		}
-	}
-	
-	"left4dead2"
-	{
-		"Signatures"
-		{
-			
-			"SetHumanSpec"
-			{
-               			"library" "server"
-			               "linux" "@_ZN11SurvivorBot17SetHumanSpectatorEP13CTerrorPlayer"
-			               "windows" "\x55\x8B\xEC\x56\x8B\xF1\x83\xBE\x2A\x2A\x2A\x2A\x00\x7E\x07\x32\xC0\x5E\x5D\xC2\x04\x00\x8B\x0D"
-			               /* 55 8B EC 56 8B F1 83 BE 44 43 00 00 00 7E 07 32 C0 5E 5D C2 04 */
-			}
-			
-			"TakeOverBot"
-		           {
-			               "library"  "server"
-			               "linux"    "@_ZN13CTerrorPlayer11TakeOverBotEb"
-			               "windows"  "\x55\x8B\xEC\x81\xEC\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x53\x56\x8D\x85"
-			               /* 55 8B EC 81 EC ? ? ? ? ? ? ? ? ? ? ? ? ? ? 53 56 8D 85 */
-		           }  
-		}
-	}
+"Games"
+{
+	"left4dead"
+	{
+		"Signatures"
+		{
+			"SetHumanSpec"
+			{
+				"library"	"server"
+				"linux" "@_ZN11SurvivorBot17SetHumanSpectatorEP13CTerrorPlayer"
+				"windows" "\x53\x8B\xD9\x83\x2A\x2A\x2A\x2A\x2A\x2A\x56\x8D\x2A\x2A\x2A\x2A\x2A\x7E\x07\x5E\x32\xC0\x5B\xC2\x04\x00"
+			}
+			"TakeOverBot"
+			{
+				"library"	"server"
+				"linux"	"@_ZN13CTerrorPlayer11TakeOverBotEb"
+				"windows" "\x81\x2A\x2A\x2A\x2A\x2A\x53\x55\x56\x57\x8D\x2A\x2A\x2A\x8B\xF9\x33\xDB\x50"
+			}
+			"CTerrorPlayer::GoAwayFromKeyboard"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer18GoAwayFromKeyboardEv"
+				"windows"		"\x2A\x2A\x2A\x2A\x2A\x2A\x8B\xF1\x8B\x06\x8B\x90\xB8\x07\x00\x00"
+				/* ? ? ? ? ? ? 8B F1 8B 06 8B 90 B8 07 00 00 */
+			}
+		}
+	}
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			"SetHumanSpec"
+			{
+				"library" "server"
+				"linux" "@_ZN11SurvivorBot17SetHumanSpectatorEP13CTerrorPlayer"
+				"windows" "\x55\x8B\xEC\x56\x8B\xF1\x83\xBE\x2A\x2A\x2A\x2A\x00\x7E\x07\x32\xC0\x5E\x5D\xC2\x04\x00\x8B\x0D"
+			}
+			"TakeOverBot"
+			{
+				"library"  "server"
+				"linux"    "@_ZN13CTerrorPlayer11TakeOverBotEb"
+				"windows"  "\x55\x8B\xEC\x81\xEC\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x53\x56\x8D\x85"
+				/* 55 8B EC 81 EC ? ? ? ? ? ? ? ? ? ? ? ? ? ? 53 56 8D 85 */
+			}
+			"CTerrorPlayer::GoAwayFromKeyboard"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer18GoAwayFromKeyboardEv"
+				"windows"		"\x2A\x2A\x2A\x2A\x2A\x2A\x53\x56\x57\x8B\xF1\x8B\x06\x8B\x90\xC4\x08\x00\x00"
+				/* ? ? ? ? ? ? 53 56 57 8B F1 8B 06 8B 90 C4 08 00 00 */			}
+		}
+	}
 }

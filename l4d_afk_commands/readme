@@ -1,49 +1,39 @@
-Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.),but no abuse
--detail-
+Adds commands to let the player spectate and join team. (!afk, !survivors, !infected, etc.), but no change team abuse.
+
+-Detail-
 //禁止期間不能閒置 亦不可按M換隊
 //1.嚇了Witch或被Witch抓倒 期間禁止換隊 (防止Witch失去目標)
 //2.被特感抓住期間 期間禁止換隊 (防止濫用特感控了無傷)
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
-//5.回合結束之前不准擅自更換隊伍
+//5.回合開始之後不准擅自更換隊伍 (防止玩家中途換隊當跳狗)
 //6.管理員指令新增 sm_swapto <player> <team> 強制指定玩家換隊伍
 
--convars-
-// If 1, admins are immune to all limit
-// -
-// Default: "1"
-// Minimum: "0.000000"
-// Maximum: "1.000000"
-l4d_afk_commands_adm_immue "1"
-
-// If 1, only admins can use command to switch team
-// -
-// Default: "0"
-// Minimum: "0.000000"
-// Maximum: "1.000000"
-l4d_afk_commands_adm_only "0"
-
+-Convar-
+cfg\sourcemod\l4d_afk_commands.cfg
 // Cold Down Time in seconds a player can't change team again.
-// -
-// Default: "4.0"
-// Minimum: "1.000000"
 l4d_afk_commands_changeteam_cooltime "4.0"
 
-// Can Dead Survivor Player change team? (0:No, 1:Yes)
-// -
-// Default: "0"
-// Minimum: "0.000000"
-// Maximum: "1.000000"
+// If 1, Dead Survivor Player can change team? (0:No, 1:Yes)
 l4d_afk_commands_deadplayer_changeteam_enable "0"
 
-// Can player use command to switch team during the game? (0:No, 1:Yes)
-// -
-// Default: "0"
-// Minimum: "0.000000"
-// Maximum: "1.000000"
-l4d_afk_commands_teamswitch_during_game_enabled "0"
+// Access level needed to be immune to all limit (Empty = Everyone, -1: Nobody)
+l4d_afk_commands_immue_level "z"
 
--commands-
+// If 1, player can change team when he is capped by special infected.
+
+l4d_afk_commands_infected_attack_enable "0"
+
+// Access level needed to use command to switch team. (Empty = Everyone)
+l4d_afk_commands_level "z"
+
+// If 1, player can use command to switch team during the game? (0:No, 1:Yes)
+l4d_afk_commands_teamswitch_during_game_enable "1"
+
+// If 1, player can change team when he is attacked by witch.
+l4d_afk_commands_witch_attack_enable "0"
+
+-Command-
 **Change team to Spectate
 	"sm_afk"
 	"sm_s"
