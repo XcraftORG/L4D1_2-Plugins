@@ -506,7 +506,7 @@ public Action TurnClientToSpectate(int client, int argCount)
 	{
 		if(CanClientChangeTeam(client,1) == false) return Plugin_Handled;
 		
-		if(iTeam == 2 && iGameMode != 2) SDKCall(hAFKSDKCall, client);
+		if(iTeam == 2 && IsPlayerAlive(client) && iGameMode != 2) SDKCall(hAFKSDKCall, client);
 		else ChangeClientTeam(client, 1);
 		
 		clientteam[client] = 1;
@@ -817,14 +817,6 @@ public Action TakeOverBot(Handle timer, int client)
 	return;
 }
 
-bool IsAlive(int client)
-{
-	if(!GetEntProp(client, Prop_Send, "m_lifeState"))
-		return true;
-	
-	return false;
-}
-
 bool IsClientIdle(int client)
 {
 	if(GetClientTeam(client) != 1)
@@ -832,7 +824,7 @@ bool IsClientIdle(int client)
 	
 	for(int i = 1; i <= MaxClients; i++)
 	{
-		if(IsClientConnected(i) && IsClientInGame(i) && IsFakeClient(i) && GetClientTeam(i) == 2 && IsAlive(i))
+		if(IsClientConnected(i) && IsClientInGame(i) && IsFakeClient(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i))
 		{
 			if(HasEntProp(i, Prop_Send, "m_humanSpectatorUserID"))
 			{
@@ -862,7 +854,7 @@ stock int FindBotToTakeOver(bool alive)
 
 bool HasIdlePlayer(int bot)
 {
-	if(IsClientConnected(bot) && IsClientInGame(bot) && IsFakeClient(bot) && GetClientTeam(bot) == 2 && IsAlive(bot))
+	if(IsClientConnected(bot) && IsClientInGame(bot) && IsFakeClient(bot) && GetClientTeam(bot) == 2 && IsPlayerAlive(bot))
 	{
 		if(HasEntProp(bot, Prop_Send, "m_humanSpectatorUserID"))
 		{
