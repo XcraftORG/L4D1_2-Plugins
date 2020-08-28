@@ -51,7 +51,7 @@ public void OnPluginStart()
 		SetFailState("[FireBullets Fix] failed to find offset");
 	}
 
-	LogMessage("Found offset for Weapon_ShootPosition %d", offset);
+	//LogMessage("Found offset for Weapon_ShootPosition %d", offset);
 
 	g_hWeapon_ShootPosition = DHookCreate(offset, HookType_Entity, ReturnType_Vector, ThisPointer_CBaseEntity);
 
