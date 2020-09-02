@@ -624,6 +624,8 @@ public Action SpawnMoreTank(Handle timer)
 		}
 	}
 	
+	if(iCommandExecuter == 0) return Plugin_Stop;
+	
 	float vecPos[3];
 	if(L4D_GetRandomPZSpawnPosition(iCommandExecuter,8,5,vecPos) == true)
 	{
