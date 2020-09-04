@@ -1,65 +1,20 @@
-/*version: 2.9*/
-//add !zs, "Alive Survivor Suicide Command."
-
-/*version: 2.8*/
-//add three convars
-//"l4d_afk_commands_immue_level", "z", "Access level needed to immune to all limit (Empty = Everyone, -1: Nobody)"
-//"l4d_afk_commands_infected_attack_enable", "0", "If 1, player can change team when he is capped by special infected."
-//"l4d_afk_commands_witch_attack_enable", "0", "If 1, player can change team when he is attacked by witch."
-//"l4d_afk_commands_level", "0", "Access level needed to use command to switch team. (Empty = Everyone)"
-//remove "l4d_afk_commands_adm_immue" and "l4d_afk_commands_adm_only convar.
-//update afk signature
-
-/*version: 2.7*/
-//add two convar
-//"l4d_afk_commands_adm_only", "0", "If 1, only admins can use command to switch team"
-//"l4d_afk_commands_adm_immue",	 "1", "If 1, admins are immune to all limit"
-
-/*version: 2.6*/
-//Improve code
-
-/*version: 2.5*/
-//Improve code
-
-/*version: 2.4*/
-//fixed InCoolDownTime error
-
-/*version: 2.3*/
-//fixed Exception reported: Language phrase "No matching client" not found
-
-/*version: 2.2*/
-//修正電腦玩家"m_humanSpectatorUserID" not found
-
-/*version: 2.1*/
-//修正玩家閒置後到了下一關或是重新回合無法換回隊伍
-
-/*version: 2.0*/
-//修正無法用jointeam2 <character> 選擇角色
-//回合結束之前不准擅自更換隊伍
-//管理員指令新增 sm_swapto <player> <team> 強制指定玩家換隊伍
-
-/*version: 1.9*/
-//修正出安全門無法換隊
-
-/*version: 1.8*/
-//修正參數沒正確改變的問題
-//修正特感數量大於上限還是能換到特感隊伍
-
-/*version: 1.7*/
 //本插件用來防止玩家換隊濫用的Bug
 //禁止期間不能閒置 亦不可按M換隊
 //1.嚇了Witch或被Witch抓倒 期間禁止換隊 (防止Witch失去目標)
 //2.被特感抓住期間 期間禁止換隊 (防止濫用特感控了無傷)
 //3.人類玩家死亡 期間禁止換隊 (防止玩家故意死亡 然後跳隊裝B)
 //4.換隊成功之後 必須等待數秒才能再換隊 (防止玩家頻繁換隊洗頻伺服器)
+//5.出安全室之後 不得隨意換隊 (防止跳狗)
+//6.管理員指令新增 sm_swapto <player> <team> 強制指定玩家換隊伍
 
-#define PLUGIN_VERSION    "2.9"
+#define PLUGIN_VERSION    "3.0"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 #include <multicolors>
+#include <left4dhooks>
 #pragma semicolon 1
 #pragma newdecls required //強制1.7以後的新語法
 
@@ -68,8 +23,9 @@
 static const int ARRAY_TEAM = 1;
 static const int ARRAY_COUNT = 2;
 //convar
-ConVar cvarCoolTime, cvarDeadChangeTeamEnable, cvarEnforceTeamSwitch, cvarCommandAccess, cvarSuicideAllow, 
-	cvarImmueAccess, cvarInfectedAttackChangeTeamEnable, cvarWitchAttackChangeTeamEnable;
+ConVar cvarCoolTime, cvarDeadChangeTeamEnable, cvarEnforceTeamSwitch, cvarSuicideAllow, 
+	cvarImmueAccess, cvarInfectedAttackChangeTeamEnable, cvarWitchAttackChangeTeamEnable, cvarPressMBlock,
+	cvarTakeABreakDisable, cvarSpecCommandAccess, cvarInfCommandAccess, cvarSurCommandAccess;
 ConVar g_hGameMode;
 
 //value
@@ -81,14 +37,13 @@ static Handle hAFKSDKCall;
 static bool InCoolDownTime[MAXPLAYERS+1] = false;//是否還有換隊冷卻時間
 static bool bClientJoinedTeam[MAXPLAYERS+1] = false; //在冷卻時間是否嘗試加入
 static float g_iSpectatePenaltyCounter[MAXPLAYERS+1] ;//各自的冷卻時間
-static bool clientBusyWitch[MAXPLAYERS+1];//是否被witch抓
-static int WitchTarget[5000];//WitchTarget[妹子元素編號]=鎖定的玩家
+static Handle nClientAttackedByWitch[MAXPLAYERS+1]; //每個玩家被多少個witch攻擊
 static int clientteam[MAXPLAYERS+1];//玩家換隊成功之後的隊伍
 static float fCoolTime;
-char g_sImmueAcclvl[16], g_sCommandAccesslvl[16];
-bool L4D2Version, bHasLeftSafeRoom;
+char g_sImmueAcclvl[16], g_sSpecCommandAccesslvl[16], g_sInfCommandAccesslvl[16], g_sSurCommandAccesslvl[16];
+bool L4D2Version, bHasLeftSafeRoom, g_bMapStarted;
 bool bDeadChangeTeamEnable, bEnforceTeamSwitch, bSuicideAllow,
-	bInfectedAttackerChangeTeamEnable, bWitchAttackChangeTeamEnable;
+	bInfectedAttackerChangeTeamEnable, bWitchAttackChangeTeamEnable, bPressMBlock, bTakeABreakDisable;
 int iGameMode;
 static Handle PlayerLeftStartTimer = null; //Detect player has left safe area or not
 
@@ -148,29 +103,36 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 	RegConsoleCmd("sm_afk", TurnClientToSpectate);
 	RegConsoleCmd("sm_s", TurnClientToSpectate);
-	RegConsoleCmd("sm_jg", TurnClientToSurvivors);
-	RegConsoleCmd("sm_join", TurnClientToSurvivors);
-	RegConsoleCmd("sm_bot", TurnClientToSurvivors);
-	RegConsoleCmd("sm_jointeam", TurnClientToSurvivors);
 	RegConsoleCmd("sm_away", TurnClientToSpectate);
 	RegConsoleCmd("sm_idle", TurnClientToSpectate);
 	RegConsoleCmd("sm_spectate", TurnClientToSpectate);
 	RegConsoleCmd("sm_spec", TurnClientToSpectate);
 	RegConsoleCmd("sm_spectators", TurnClientToSpectate);
 	RegConsoleCmd("sm_joinspectators", TurnClientToSpectate);
+	RegConsoleCmd("sm_joinspectator", TurnClientToSpectate);
 	RegConsoleCmd("sm_jointeam1", TurnClientToSpectate);
+	RegConsoleCmd("sm_js", TurnClientToSpectate);
+	
+	RegConsoleCmd("sm_jg", TurnClientToSurvivors);
+	RegConsoleCmd("sm_join", TurnClientToSurvivors);
+	RegConsoleCmd("sm_bot", TurnClientToSurvivors);
+	RegConsoleCmd("sm_jointeam", TurnClientToSurvivors);
 	RegConsoleCmd("sm_survivors", TurnClientToSurvivors);
 	RegConsoleCmd("sm_survivor", TurnClientToSurvivors);
 	RegConsoleCmd("sm_sur", TurnClientToSurvivors);
 	RegConsoleCmd("sm_joinsurvivors", TurnClientToSurvivors);
+	RegConsoleCmd("sm_joinsurvivor", TurnClientToSurvivors);
 	RegConsoleCmd("sm_jointeam2", TurnClientToSurvivors);
+	
 	RegConsoleCmd("sm_infected", TurnClientToInfected);
+	RegConsoleCmd("sm_infecteds", TurnClientToInfected);
 	RegConsoleCmd("sm_inf", TurnClientToInfected);
 	RegConsoleCmd("sm_joininfected", TurnClientToInfected);
 	RegConsoleCmd("sm_jointeam3", TurnClientToInfected);
+	RegConsoleCmd("sm_zombie", TurnClientToInfected);
 	
-	RegConsoleCmd("jointeam", WTF);
-	RegConsoleCmd("go_away_from_keyboard", WTF2);
+	RegConsoleCmd("jointeam", WTF); // press M
+	RegConsoleCmd("go_away_from_keyboard", WTF2); //esc -> take a break
 	
 	RegAdminCmd("sm_swapto", Command_SwapTo, ADMFLAG_BAN, "sm_swapto <player1> [player2] ... [playerN] <teamnum> - swap all listed players to <teamnum> (1,2, or 3)");
 	RegConsoleCmd("sm_zs", ForceSurvivorSuicide, "Alive Survivor Suicide Command.");
@@ -181,9 +143,13 @@ public void OnPluginStart()
 	cvarImmueAccess = CreateConVar("l4d_afk_commands_immue_level", "z", "Access level needed to be immune to all limit (Empty = Everyone, -1: Nobody)", FCVAR_NOTIFY);
 	cvarInfectedAttackChangeTeamEnable = CreateConVar("l4d_afk_commands_infected_attack_enable", "0", "If 1, player can change team when he is capped by special infected.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	cvarWitchAttackChangeTeamEnable = CreateConVar("l4d_afk_commands_witch_attack_enable", "0", "If 1, player can change team when he is attacked by witch.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvarCommandAccess = CreateConVar("l4d_afk_commands_level", "", "Access level needed to use command to switch team. (Empty = Everyone)", FCVAR_NOTIFY);
 	cvarSuicideAllow = CreateConVar("l4d_afk_commands_suicide_allow", "0", "If 1, Allow alive survivor player suicides by using '!zs'", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-
+	cvarPressMBlock = CreateConVar("l4d_afk_commands_pressM_block", "0", "If 1, Block player from using 'jointeam' command and stop player from switching team by choosing team menu.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarTakeABreakDisable = CreateConVar("l4d_afk_commands_takeabreak_block", "0", "If 1, Block player from going idle with 'esc->take a break'.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvarSpecCommandAccess = CreateConVar("l4d_afk_commands_spec_level", "", "Access level needed to use command to spectator team. (Empty = Everyone, -1: Nobody)", FCVAR_NOTIFY);
+	cvarInfCommandAccess = CreateConVar("l4d_afk_commands_infected_level", "", "Access level needed to use command to infected team. (Empty = Everyone, -1: Nobody)", FCVAR_NOTIFY);
+	cvarSurCommandAccess = CreateConVar("l4d_afk_commands_survivor_level", "", "Access level needed to use command to survivor team. (Empty = Everyone, -1: Nobody)", FCVAR_NOTIFY);
+	
 	GetCvars();
 	g_hGameMode = FindConVar("mp_gamemode");
 	g_hGameMode.AddChangeHook(ConVarChange_CvarGameMode);
@@ -193,14 +159,19 @@ public void OnPluginStart()
 	cvarImmueAccess.AddChangeHook(ConVarChanged_Cvars);
 	cvarInfectedAttackChangeTeamEnable.AddChangeHook(ConVarChanged_Cvars);
 	cvarWitchAttackChangeTeamEnable.AddChangeHook(ConVarChanged_Cvars);
-	cvarCommandAccess.AddChangeHook(ConVarChanged_Cvars);
+	cvarSpecCommandAccess.AddChangeHook(ConVarChanged_Cvars);
 	cvarSuicideAllow.AddChangeHook(ConVarChanged_Cvars);
+	cvarPressMBlock.AddChangeHook(ConVarChanged_Cvars);
+	cvarTakeABreakDisable.AddChangeHook(ConVarChanged_Cvars);
+	cvarInfCommandAccess.AddChangeHook(ConVarChanged_Cvars);
+	cvarSurCommandAccess.AddChangeHook(ConVarChanged_Cvars);
 	
 	HookEvent("witch_harasser_set", OnWitchWokeup);
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_team", Event_PlayerChangeTeam);
 	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("witch_killed", OnWitchKilled);
 
 	Clear();
 
@@ -211,8 +182,52 @@ public void OnPluginStart()
 
 public void OnMapStart()
 {
+	g_bMapStarted = true;
 	ClearArray(arrayclientswitchteam);
+}
+
+public void OnMapEnd()
+{
+	g_bMapStarted = false;
+}
+
+public void OnConfigsExecuted()
+{
 	GameModeCheck();
+}
+
+void GameModeCheck()
+{
+	if(g_bMapStarted == false){
+		iGameMode = 0;
+		return;
+	}
+		
+	int entity = CreateEntityByName("info_gamemode");
+	if( IsValidEntity(entity) )
+	{
+		DispatchSpawn(entity);
+		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+		ActivateEntity(entity);
+		AcceptEntityInput(entity, "PostSpawnActivate");
+		if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+			RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+	}
+}
+
+public void OnGamemode(const char[] output, int caller, int activator, float delay)
+{
+	if( strcmp(output, "OnCoop") == 0 )
+		iGameMode = 1;
+	else if( strcmp(output, "OnSurvival") == 0 )
+		iGameMode = 3;
+	else if( strcmp(output, "OnVersus") == 0 )
+		iGameMode = 2;
+	else if( strcmp(output, "OnScavenge") == 0 )
+		iGameMode = 2;
 }
 
 public Action Command_SwapTo(int client, int args)
@@ -252,7 +267,7 @@ public Action Command_SwapTo(int client, int args)
 		else if (team == 3)
 			ChangeClientTeam(player_id,3);
 			
-		PrintToChatAll("[SM] %N has been swapped to the %s team.", player_id, L4D_TEAM_NAME(team));
+		PrintToChatAll("[TS] %N has been swapped to the %s team.", player_id, L4D_TEAM_NAME(team));
 	}
 	
 	return Plugin_Handled;
@@ -274,9 +289,9 @@ public Action ForceSurvivorSuicide(int client, int args)
 			return Plugin_Handled;
 		}
 		
-		if(clientBusyWitch[client])
+		if( GetArraySize(nClientAttackedByWitch[client]) != 0 )
 		{
-			PrintHintText(client, "[TS] Witch干擾期間禁止自殺. Not on your life!");
+			PrintHintText(client, "[TS] Witch 干擾期間禁止自殺. Not on your life!");
 			return Plugin_Handled;
 		}
 
@@ -289,8 +304,8 @@ public Action ForceSurvivorSuicide(int client, int args)
 public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast) 
 {
 	int victim = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsClientAndInGame(victim)) return;
-	clientBusyWitch[victim] = false;
+	if(!victim || !IsClientAndInGame(victim)) return;
+	ResetAttackedByWitch(victim);
 
 	if(!bEnforceTeamSwitch && IsClientInGame(victim) && !IsFakeClient(victim) && GetClientTeam(victim) == 2)
 	{
@@ -337,13 +352,8 @@ public Action checksurvivorspawn(Handle timer, int client)
 
 public void OnClientPutInServer(int client)
 {
-	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);	
-}
-
-public bool OnClientConnect(int client)
-{
 	Clear(client);
-	return true;
+	SDKHook(client, SDKHook_OnTakeDamage, OnTakeDamage);	
 }
 
 public void OnClientDisconnect(int client)
@@ -353,58 +363,49 @@ public void OnClientDisconnect(int client)
 
 public Action OnTakeDamage(int victim, int &attacker, int  &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
 {
-	if (!IsValidEdict(victim) || !IsValidEdict(attacker) || !IsValidEdict(inflictor) || !bHasLeftSafeRoom) { return Plugin_Continue; }
+	if (!IsValidEdict(victim) || !IsValidEdict(attacker) || !IsValidEdict(inflictor) ) { return Plugin_Continue; }
 	
-	if(GetClientTeam(victim) != 2 || !IsClientAndInGame(victim)) { return Plugin_Continue; }
-	if(WitchTarget[attacker] == victim) { return Plugin_Continue; }
+	if(!IsClientAndInGame(victim) || GetClientTeam(victim) != 2) { return Plugin_Continue; }
+	
 	char sClassname[64];
 	GetEntityClassname(inflictor, sClassname, 64);
 	if(StrEqual(sClassname, "witch"))
 	{
-		WitchTarget[attacker] = victim;
-		clientBusyWitch[victim] = true;
-		//PrintToChatAll("attacker: %d, victim: %d",attacker,victim);
-		CreateTimer(0.25, TraceWitchAlive, attacker, TIMER_REPEAT);
+		AddWitchAttack(attacker, victim);
 	}
 	return Plugin_Continue;
 }
 
 public Action OnWitchWokeup(Event event, const char[] name, bool dontBroadcast) 
 {
-	if(!bHasLeftSafeRoom) return;
-	int client = GetClientOfUserId(event.GetInt("userid"));
+	int userid = event.GetInt("userid");
+	int client = GetClientOfUserId(userid);
 	int witchid = event.GetInt("witchid");
+	
 	if(client > 0 && client <= MaxClients &&  IsClientInGame(client) && GetClientTeam(client) == 2)
 	{
-		WitchTarget[witchid] = client;
-		clientBusyWitch[client] = true;
-		CreateTimer(0.25, TraceWitchAlive, witchid, TIMER_REPEAT);
+		AddWitchAttack(witchid, client);
 	}
 	
 }
 
-public Action TraceWitchAlive(Handle timer, int entity)
+public Action OnWitchKilled(Event event, const char[] name, bool dontBroadcast) 
 {
-	int witchtarget = WitchTarget[entity];
-	if(!IsValidEntity(witchtarget)) return Plugin_Stop;
-	if (!IsValidEntity(entity))//witch dead or gone
+	int witchid = GetEventInt(event, "witchid");
+	RemoveWitchAttack(witchid);
+}
+
+public void OnEntityDestroyed(int entity)
+{
+	if( entity > 0 && IsValidEdict(entity) )
 	{
-		//PrintToChatAll("Witch id:%d dead or gone, client: %d",entity,witchtarget);
-		int iWitch = -1;
-		while((iWitch = FindEntityByClassname(iWitch, "witch")) != -1)
+		char strClassName[64];
+		GetEdictClassname(entity, strClassName, sizeof(strClassName));
+		if(StrEqual(strClassName, "witch"))	
 		{
-			if(iWitch!=entity && WitchTarget[iWitch] == witchtarget)
-			{
-				//PrintToChatAll("Witch id:%d still tracing client: %d",iWitch,witchtarget);
-				return Plugin_Stop;
-			}
+			RemoveWitchAttack(entity);
 		}
-		clientBusyWitch[witchtarget] = false;
-		WitchTarget[entity] = -1;
-		return Plugin_Stop;
 	}
-	clientBusyWitch[witchtarget] = true;
-	return Plugin_Continue;
 }
 
 public Action Event_PlayerChangeTeam(Event event, const char[] name, bool dontBroadcast) 
@@ -430,8 +431,12 @@ void GetCvars()
 	bInfectedAttackerChangeTeamEnable = cvarInfectedAttackChangeTeamEnable.BoolValue;
 	bWitchAttackChangeTeamEnable = cvarWitchAttackChangeTeamEnable.BoolValue;
 	cvarImmueAccess.GetString(g_sImmueAcclvl,sizeof(g_sImmueAcclvl));
-	cvarCommandAccess.GetString(g_sCommandAccesslvl,sizeof(g_sCommandAccesslvl));
+	cvarSpecCommandAccess.GetString(g_sSpecCommandAccesslvl,sizeof(g_sSpecCommandAccesslvl));
+	cvarInfCommandAccess.GetString(g_sInfCommandAccesslvl,sizeof(g_sInfCommandAccesslvl));
+	cvarSurCommandAccess.GetString(g_sSurCommandAccesslvl,sizeof(g_sSurCommandAccesslvl));
 	bSuicideAllow = cvarSuicideAllow.BoolValue;
+	bPressMBlock = cvarPressMBlock.BoolValue;
+	bTakeABreakDisable = cvarTakeABreakDisable.BoolValue;
 	CheckSpectatePenalty();
 }
 
@@ -452,7 +457,7 @@ public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcas
 }
 public Action PlayerLeftStart(Handle Timer)
 {
-	if (LeftStartArea())
+	if (L4D_HasAnySurvivorLeftSafeArea())
 	{
 		bHasLeftSafeRoom = true;
 		PlayerLeftStartTimer = null;
@@ -469,8 +474,8 @@ void Clear(int client = -1)
 		{	
 			InCoolDownTime[i] = false;
 			bClientJoinedTeam[i] = false;
-			clientBusyWitch[i] = false;
 			clientteam[i] = 0;
+			ResetAttackedByWitch(i);
 		}
 		bHasLeftSafeRoom = false;
 	}	
@@ -478,9 +483,10 @@ void Clear(int client = -1)
 	{
 		InCoolDownTime[client] = false;
 		bClientJoinedTeam[client] = false;
-		clientBusyWitch[client] = false;
 		clientteam[client] = 0;
+		ResetAttackedByWitch(client);
 	}
+
 }
 
 public Action TurnClientToSpectate(int client, int argCount)
@@ -495,9 +501,9 @@ public Action TurnClientToSpectate(int client, int argCount)
 		PrintHintText(client, "[TS] 你正在閒置中.");
 		return Plugin_Handled;
 	}
-	if(HasCommand_Access(client) == false)
+	if(HasAccess(client, g_sSpecCommandAccesslvl) == false)
 	{
-		PrintHintText(client, "[TS] 你沒有權限換隊.");
+		PrintHintText(client, "[TS] 你沒有權限換隊到旁觀者.");
 		return Plugin_Handled;
 	}
 
@@ -542,9 +548,9 @@ public Action TurnClientToSurvivors(int client, int args)
 		PrintHintText(client, "[TS] 你正在閒置中. 請按左鍵遊玩倖存者.");
 		return Plugin_Handled;
 	}
-	if(HasCommand_Access(client) == false)
+	if(HasAccess(client, g_sSurCommandAccesslvl) == false)
 	{
-		PrintHintText(client, "[TS] 你沒有權限換隊.");
+		PrintHintText(client, "[TS] 你沒有權限換隊到倖存者.");
 		return Plugin_Handled;
 	}
 
@@ -553,7 +559,7 @@ public Action TurnClientToSurvivors(int client, int args)
 	int maxSurvivorSlots = GetTeamMaxSlots(2);
 	int survivorUsedSlots = GetTeamHumanCount(2);
 	int freeSurvivorSlots = (maxSurvivorSlots - survivorUsedSlots);
-	//debug
+
 	//PrintToChatAll("Number of Survivor Slots %d.\nNumber of Survivor Players %d.\nNumber of Free Slots %d.", maxSurvivorSlots, survivorUsedSlots, freeSurvivorSlots);
 	
 	if (freeSurvivorSlots <= 0)
@@ -605,9 +611,9 @@ public Action TurnClientToInfected(int client, int args)
 		PrintHintText(client, "[TS] 你已經在特感隊伍了.");
 		return Plugin_Handled;
 	}
-	if(HasCommand_Access(client) == false)
+	if(HasAccess(client, g_sInfCommandAccesslvl) == false)
 	{
-		PrintHintText(client, "[TS] 你沒有權限換隊.");
+		PrintHintText(client, "[TS] 你沒有權限換隊到特感隊伍.");
 		return Plugin_Handled;
 	}
 
@@ -702,6 +708,12 @@ public Action WTF(int client, int args) //玩家press m
 		PrintToServer("[TS] command cannot be used by server.");
 		return Plugin_Handled;
 	}
+	
+	if(bPressMBlock == true) 
+	{
+		PrintHintText(client, "[TS] 此換隊方式已被禁止!");	
+		return Plugin_Handled;
+	}
 
 	if(CanClientChangeTeam(client,5)  == false) return Plugin_Handled;
 	
@@ -754,13 +766,19 @@ public Action WTF(int client, int args) //玩家press m
 	return Plugin_Continue;
 }
 
-public Action WTF2(int client, int args)
+public Action WTF2(int client, int args) //esc->take a break
 {
 	if (client == 0)
 	{
 		PrintToServer("[TS] command cannot be used by server.");
 		return Plugin_Handled;
 	}
+	if(bTakeABreakDisable == true) 
+	{
+		PrintHintText(client, "[TS] 此閒置方式已被禁止!");	
+		return Plugin_Handled;
+	}
+	
 	if (GetClientTeam(client) == 3)			//if client is Infected
 	{
 		PrintHintText(client, "[TS] 走開!! 特感玩家無法閒置!.");
@@ -870,16 +888,17 @@ bool HasIdlePlayer(int bot)
 
 bool CanClientChangeTeam(int client, int changeteam)
 { 
-	if(bHasLeftSafeRoom == false || HasImmueLimit_Access(client)) return true;
+	if(bHasLeftSafeRoom == false || HasAccess(client, g_sImmueAcclvl)) return true;
 
 	if ( L4D2_GetInfectedAttacker(client) != -1 && bInfectedAttackerChangeTeamEnable == false)
 	{
 		PrintHintText(client, "[TS] 特感抓住期間禁止換隊.");
 		return false;
 	}	
-	if( clientBusyWitch[client] && bWitchAttackChangeTeamEnable == false)
+	
+	if( bWitchAttackChangeTeamEnable == false && GetArraySize(nClientAttackedByWitch[client]) != 0)
 	{
-		PrintHintText(client, "[TS] Witch干擾期間禁止換隊.");
+		PrintHintText(client, "[TS] Witch 干擾期間禁止換隊.");
 		return false;
 	}
 	
@@ -898,15 +917,16 @@ bool CanClientChangeTeam(int client, int changeteam)
 
 	if(bEnforceTeamSwitch == false && bHasLeftSafeRoom && GetClientTeam(client) != 1 && changeteam != 1) 
 	{
-		CPrintToChat(client, "[{olive}TS{default}] 遊戲開始後{green}禁止跳隊{default}!!");
+		CPrintToChat(client, "[{olive}TS{default}] 遊戲開始後{green}禁止更換隊伍{default}!!");
 		return false;
 	}
+	
 	return true;
 }
 
 void StartChangeTeamCoolDown(int client)
 {
-	if( InCoolDownTime[client] || bHasLeftSafeRoom == false || HasImmueLimit_Access(client)) return;
+	if( InCoolDownTime[client] || bHasLeftSafeRoom == false || HasAccess(client, g_sImmueAcclvl)) return;
 
 	if(fCoolTime > 0.0)
 	{
@@ -919,7 +939,7 @@ void StartChangeTeamCoolDown(int client)
 public Action ClientReallyChangeTeam(Handle timer, int client)
 {
 	if(!IsClientAndInGame(client)||IsFakeClient(client)) return;
-	if(HasImmueLimit_Access(client)) return;
+	if(HasAccess(client, g_sImmueAcclvl)) return;
 
 	if(bEnforceTeamSwitch == false)
 	{
@@ -1013,34 +1033,6 @@ public Action Timer_CanJoin(Handle timer, int client)
 	return Plugin_Continue;
 }
 
-bool LeftStartArea()
-{
-	int ent = -1, maxents = GetMaxEntities();
-	for (int i = MaxClients+1; i <= maxents; i++)
-	{
-		if (IsValidEntity(i))
-		{
-			char netclass[64];
-			GetEntityNetClass(i, netclass, sizeof(netclass));
-			
-			if (StrEqual(netclass, "CTerrorPlayerResource"))
-			{
-				ent = i;
-				break;
-			}
-		}
-	}
-	
-	if (ent > -1)
-	{
-		if (GetEntProp(ent, Prop_Send, "m_hasAnySurvivorLeftSafeArea"))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
 stock int L4D2_GetInfectedAttacker(int client)
 {
 	int attacker;
@@ -1084,17 +1076,17 @@ stock int L4D2_GetInfectedAttacker(int client)
 	return -1;
 }
 
-public bool HasImmueLimit_Access(int client)
+public bool HasAccess(int client, char[] g_sAcclvl)
 {
 	// no permissions set
-	if (strlen(g_sImmueAcclvl) == 0)
+	if (strlen(g_sAcclvl) == 0)
 		return true;
 
-	else if (StrEqual(g_sImmueAcclvl, "-1"))
+	else if (StrEqual(g_sAcclvl, "-1"))
 		return false;
 
 	// check permissions
-	if (GetUserFlagBits(client) & ReadFlagString(g_sImmueAcclvl) == 0)
+	if (GetUserFlagBits(client) & ReadFlagString(g_sAcclvl) == 0)
 	{
 		return false;
 	}
@@ -1102,31 +1094,25 @@ public bool HasImmueLimit_Access(int client)
 	return true;
 }
 
-public bool HasCommand_Access(int client)
-{
-	// no permissions set
-	if (strlen(g_sCommandAccesslvl) == 0)
-		return true;
-
-	// check permissions
-	if (GetUserFlagBits(client) & ReadFlagString(g_sCommandAccesslvl) == 0)
-	{
-		return false;
-	}
-
-	return true;
+void ResetAttackedByWitch(int client) {
+	delete nClientAttackedByWitch[client];
+	nClientAttackedByWitch[client] = CreateArray();
 }
 
-void GameModeCheck()
+void AddWitchAttack(int witchid, int client)
 {
-	char GameName[16];
-	g_hGameMode.GetString(GameName,sizeof(GameName));
-	if (StrEqual(GameName, "survival", false))
-		iGameMode = 3;
-	else if (StrEqual(GameName, "versus", false) || StrEqual(GameName, "teamversus", false) || StrEqual(GameName, "scavenge", false) || StrEqual(GameName, "teamscavenge", false) || StrEqual(GameName, "mutation12", false) || StrEqual(GameName, "mutation13", false) || StrEqual(GameName, "mutation15", false) || StrEqual(GameName, "mutation11", false))
-		iGameMode = 2;
-	else if (StrEqual(GameName, "coop", false) || StrEqual(GameName, "realism", false) || StrEqual(GameName, "mutation3", false) || StrEqual(GameName, "mutation9", false) || StrEqual(GameName, "mutation1", false) || StrEqual(GameName, "mutation7", false) || StrEqual(GameName, "mutation10", false) || StrEqual(GameName, "mutation2", false) || StrEqual(GameName, "mutation4", false) || StrEqual(GameName, "mutation5", false) || StrEqual(GameName, "mutation14", false))
-		iGameMode = 1;
-	else
-		iGameMode = 1;
+	if(FindValueInArray(nClientAttackedByWitch[client], witchid) == -1)
+	{
+		PushArrayCell(nClientAttackedByWitch[client], witchid);
+	}
+}
+
+void RemoveWitchAttack(int witchid)
+{
+	int index;
+	for (int client = 1; client <= MaxClients; client++) {
+		if ( (index = FindValueInArray(nClientAttackedByWitch[client], witchid)) != -1 ) {
+			RemoveFromArray(nClientAttackedByWitch[client],index);
+		}
+	}
 }

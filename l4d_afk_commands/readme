@@ -23,17 +23,31 @@ l4d_afk_commands_immue_level "z"
 // If 1, player can change team when he is capped by special infected.
 l4d_afk_commands_infected_attack_enable "0"
 
-// Access level needed to use command to switch team. (Empty = Everyone)
-l4d_afk_commands_level ""
+// Access level needed to use command to infected team. (Empty = Everyone, -1: Nobody)
+l4d_afk_commands_infected_level ""
+
+// If 1, Block player from using 'jointeam' command and stop player from switching team by choosing team menu.
+l4d_afk_commands_pressM_block "0"
+
+// Access level needed to use command to spectator team. (Empty = Everyone, -1: Nobody)
+l4d_afk_commands_spec_level ""
 
 // If 1, Allow alive survivor player suicides by using '!zs'
 l4d_afk_commands_suicide_allow "0"
+
+// Access level needed to use command to survivor team. (Empty = Everyone, -1: Nobody)
+l4d_afk_commands_survivor_level ""
+
+// If 1, Block player from going idle with 'esc->take a break'.
+l4d_afk_commands_takeabreak_block "0"
 
 // If 1, player can use command to switch team during the game? (0:No, 1:Yes)
 l4d_afk_commands_teamswitch_during_game_enable "1"
 
 // If 1, player can change team when he is attacked by witch.
 l4d_afk_commands_witch_attack_enable "0"
+
+
 
 -Command-
 **Change team to Spectate
@@ -45,7 +59,9 @@ l4d_afk_commands_witch_attack_enable "0"
 	"sm_spec"
 	"sm_spectators"
 	"sm_joinspectators"
+	"sm_joinspectator"
 	"sm_jointeam1"
+	"sm_js"
 	
 **Change team to Survivor
 	"sm_join"
@@ -55,13 +71,17 @@ l4d_afk_commands_witch_attack_enable "0"
 	"sm_survivor"
 	"sm_sur"
 	"sm_joinsurvivors"
+	"sm_joinsurvivor"
 	"sm_jointeam2"
+	"sm_jg"
 	
 **Change team to Infected
 	"sm_infected"
 	"sm_inf"
 	"sm_joininfected"
+	"sm_joininfecteds"
 	"sm_jointeam3"
+	"sm_zombie"
 	
 **Adm force player to change team
 	"sm_swapto", "sm_swapto <player1> [player2] ... [playerN] <teamnum> - swap all listed players to <teamnum> (1,2, or 3)"
