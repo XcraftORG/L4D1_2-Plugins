@@ -1,6 +1,6 @@
 # L4D1&2-Plugins  by Harry Potter
 Help server to record, make server more fun, and more useful plugins for adm.
-> All plugins in here apply to both L4D1/2 (last edited:2020/8/29)
+> All plugins in here apply to both L4D1/2 (last edited:2020/9/4)
 # Appreciate my work, you can [PayPal Donate](https://paypal.me/Harry0215?locale.x=zh_TW) me.
 If you want any modify or request, feel free to use or pay me money to do it.
 # Require
@@ -38,7 +38,7 @@ If you want any modify or request, feel free to use or pay me money to do it.
 * <b>hp_tank_show</b>: Display Tank HP status on his head.
 * <b>TickrateFixes</b>: Fixes a handful of silly Tickrate bugs including door speed.
 * <b>cge_l4d2_deathcheck</b>: Prevents mission loss(Round_End) until all human players have died.
-* <b>clear_weapon_drop</b>: Clear drop items, non-death drops
+* <b>clear_weapon_drop</b>: Remove drop weapon + remove upgradepack when used
 * <b>l4d_final_rescue_gravity</b>: Set client gravity after final rescue starts just for fun.
 * <b>l4dinfectedbots</b>: Spawns infected bots in versus, allows playable special infected in coop/survival, and changable S.I. limit
 * <b>l4d_votes_5</b>: L4D1/2 Vote Menu (Change map、Kick、Restart、Give HP、Alltalk)

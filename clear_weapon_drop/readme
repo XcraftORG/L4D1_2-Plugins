@@ -1,11 +1,22 @@
-[L4D2] Clear drop items, non-death drops
+Remove drop weapon + remove upgradepack when used
 
--Original Post-
-https://forums.alliedmods.net/showthread.php?p=2638375
+-ChangeLog-
+v2.1
+-Remake Code
+-Use EntIndexToEntRef and EntRefToEntIndex to remove entity safely
 
+v1.7
+-original Post: https://forums.alliedmods.net/showthread.php?p=2638375
 
-delete all weapons, items execpt for kit, m60 and gascan
+-ConVar-
+// time in seconds to remove upgradepack when used
+sm_drop_clear_ground_upgrade_pack_time "30.0"
+
+// time in seconds  to remove weapon after drops.
+sm_drop_clear_weapon_time "30.0"
+
 -Delete weapon list-
+* weapons
 {
 	"weapon_smg_mp5",
 	"weapon_smg",
@@ -14,7 +25,7 @@ delete all weapons, items execpt for kit, m60 and gascan
 	"weapon_pumpshotgun",
 	"weapon_hunting_rifle",
 	"weapon_pistol",
-	//"weapon_rifle_m60",
+	"weapon_rifle_m60",
 	//"weapon_first_aid_kit",
 	"weapon_autoshotgun",
 	"weapon_shotgun_spas",
@@ -42,6 +53,8 @@ delete all weapons, items execpt for kit, m60 and gascan
 	"weapon_oxygentank"
 }
 
--ConVar-
-// clear time
-sm_drop_clear_time "60.0"
+* upgradepack
+{
+	"models/props/terror/incendiary_ammo.mdl",
+	"models/props/terror/exploding_ammo.mdl"
+};

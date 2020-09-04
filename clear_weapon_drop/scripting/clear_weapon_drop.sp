@@ -1,12 +1,21 @@
+#pragma semicolon 1
+#pragma newdecls required //強制1.7以後的新語法
 #include <sourcemod>
 #include <sdktools>
 
-new Handle:ClearTime = INVALID_HANDLE;
-new Handle:g_timer = INVALID_HANDLE;
-Address address[2048];
-new aaa;
+#define CVAR_FLAGS			FCVAR_NOTIFY
+ConVar ClearTime, Clear_UpradeGroundPack_Time;
+float fItemDeleteTime[2048];
+int iRoundStart;
+bool L4D2Version;
 
-new const String:ItemDeleteList[][] =
+static char upgradegroundpack[][] =
+{
+	"models/props/terror/incendiary_ammo.mdl",
+	"models/props/terror/exploding_ammo.mdl"
+};
+
+static char ItemDeleteList[][] =
 {
 	"weapon_smg_mp5",
 	"weapon_smg",
@@ -15,7 +24,7 @@ new const String:ItemDeleteList[][] =
 	"weapon_pumpshotgun",
 	"weapon_hunting_rifle",
 	"weapon_pistol",
-	//"weapon_rifle_m60",
+	"weapon_rifle_m60",
 	//"weapon_first_aid_kit",
 	"weapon_autoshotgun",
 	"weapon_shotgun_spas",
@@ -35,6 +44,7 @@ new const String:ItemDeleteList[][] =
 	"weapon_pain_pills",
 	"weapon_adrenaline",
 	"weapon_melee",
+	"weapon_chainsaw",
 	"weapon_upgradepack_incendiary",
 	"weapon_upgradepack_explosive",
 	//"weapon_gascan",
@@ -43,115 +53,152 @@ new const String:ItemDeleteList[][] =
 	"weapon_oxygentank"
 };
 
-public Plugin:myinfo = 
+public Plugin myinfo = 
 {
-	name = "[l4d2]remove drop weapon",
-	author = "AK978",
-	version = "1.7"
+	name = "Remove drop weapon + remove upgradepack when used",
+	author = "AK978, HarryPotter",
+	version = "2.1"
 }
 
-public OnPluginStart()
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) 
 {
-	ClearTime = CreateConVar("sm_drop_clear_time", "30.0", "clear time", 0);
+	EngineVersion test = GetEngineVersion();
+	
+	if( test == Engine_Left4Dead )
+	{
+		L4D2Version = false;
+	}
+	else if( test == Engine_Left4Dead2 )
+	{
+		L4D2Version = true;
+	}
+	else
+	{
+		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
+		return APLRes_SilentFailure;
+	}
+	
+	return APLRes_Success; 
+}
+
+public void OnPluginStart()
+{
+	ClearTime = CreateConVar("sm_drop_clear_weapon_time", "30.0", "time in seconds  to remove weapon after drops.", CVAR_FLAGS, true, 0.0);
+	Clear_UpradeGroundPack_Time = CreateConVar("sm_drop_clear_ground_upgrade_pack_time", "30.0", "time in seconds to remove upgradepack when used", CVAR_FLAGS, true, 0.0);
 	
 	HookEvent("weapon_drop", Event_Weapon_Drop);
 	HookEvent("round_start", Event_Round_Start);
 	HookEvent("round_end", Event_Round_End);
 	
+	if (L4D2Version){
+		HookEvent ("upgrade_pack_used",	Event_UpgradePack);
+	}
+	
 	AutoExecConfig(true, "clear_weapon_drop");
 }
 
-public OnMapEnd()
+public Action Event_Round_Start(Event event, const char[] name, bool dontBroadcast)
 {
-	if (g_timer != INVALID_HANDLE)
-	{
-		KillTimer(g_timer);
-		g_timer = INVALID_HANDLE;
-	}
+	iRoundStart = 1;
 }
 
-public Action:Event_Round_Start(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_Round_End(Event event, const char[] name, bool dontBroadcast)
 {
-	aaa = 1;
+	iRoundStart = 0;
 }
 
-public Action:Event_Round_End(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_Weapon_Drop(Event event, const char[] name, bool dontBroadcast)
 {
-	aaa = 0;
-}
-
-public Action:Event_Weapon_Drop(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	new client = GetClientOfUserId(GetEventInt(event, "userid"))
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	if (!IsValidClient(client) || !IsPlayerAlive(client)) return Plugin_Stop;
 		
-	new entity = GetEventInt(event, "propid");
-	address[entity] = GetEntityAddress(entity);
-	
-	new String:item[32];
-	
+	int entity = event.GetInt("propid");
 	if (!IsValidEntity(entity) || !IsValidEdict(entity)) return Plugin_Stop;
-	
+
+	char item[32];
 	GetEdictClassname(entity, item, sizeof(item));
-	//PrintToChatAll("掉落物品: %s",item);
-	
-	for(new j=0; j < sizeof(ItemDeleteList); j++)
+	fItemDeleteTime[entity] = GetEngineTime();
+	//PrintToChatAll("%d - %s",entity,item);
+
+	Handle pack = new DataPack();
+	for(int j=0; j < sizeof(ItemDeleteList); j++)
 	{
 		if (StrContains(item, ItemDeleteList[j], false) != -1)
 		{
-			g_timer = CreateTimer(GetConVarFloat(ClearTime), del_weapon, entity);
+			CreateDataTimer(ClearTime.FloatValue, Timer_KillWeapon, pack,TIMER_FLAG_NO_MAPCHANGE);
+			break;
 		}
 	}
+
+	WritePackCell(pack, EntIndexToEntRef(entity));
+	WritePackCell(pack, fItemDeleteTime[entity]);
 	return Plugin_Stop;
 }
 
-public Action:del_weapon(Handle:timer, any:entity)
+public void Event_UpgradePack(Event event, const char[] name, bool dontBroadcast)
 {
-	if (IsValidEntity(entity) && aaa == 1)
+	int entity = event.GetInt("upgradeid");
+	if (!IsValidEntity(entity) || !IsValidEdict(entity)) return;
+
+	if(Is_UpgradeGroundPack(entity, upgradegroundpack, sizeof(upgradegroundpack)))
+		CreateTimer(Clear_UpradeGroundPack_Time.FloatValue, Timer_KillEntity, EntIndexToEntRef(entity),TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public Action Timer_KillWeapon(Handle timer, Handle pack)
+{
+	ResetPack(pack);
+	int entity = ReadPackCell(pack);
+	float fDeletetime = ReadPackCell(pack);
+	if(entity && (entity = EntRefToEntIndex(entity)) != INVALID_ENT_REFERENCE)
 	{
-		if (address[entity] == GetEntityAddress(entity))
+		if(iRoundStart == 1 && IsValidEntity(entity) && fItemDeleteTime[entity] == fDeletetime)
 		{
-			for(new j=0; j < sizeof(ItemDeleteList); j++)
+			if ( IsInUse(entity) == false )
 			{
-				new String:item[32];
-				GetEdictClassname(entity, item, sizeof(item));
-				
-				if (StrContains(item, ItemDeleteList[j], false) != -1)
-				{
-					if(!IsWeaponInUse(entity))
-					{
-						AcceptEntityInput(entity, "Kill");
-						address[entity] = Address_Null;
-					}
-				}
+				AcceptEntityInput(entity, "Kill");
 			}
 		}
 	}
-	g_timer = INVALID_HANDLE;
 }
 
-bool:IsWeaponInUse(entity)
-{	
-	new client = GetEntPropEnt(entity, Prop_Data, "m_hOwner");
-	if (IsValidClient(client))
-		return true;
-	
-	client = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
-	if (IsValidClient(client))
-		return true;
+public Action Timer_KillEntity(Handle timer, int ref)
+{
+	if(ref && EntRefToEntIndex(ref) != INVALID_ENT_REFERENCE)
+	{
+		AcceptEntityInput(ref, "kill"); //remove dead boddy entity
+	}
+	return Plugin_Continue;
+}
 
-	for (new i = 1; i <= MaxClients; i++) 
+bool IsInUse(int entity)
+{	
+	int client;
+	if(HasEntProp(entity, Prop_Data, "m_hOwner"))
+	{
+		client = GetEntPropEnt(entity, Prop_Data, "m_hOwner");
+		if (IsValidClient(client))
+			return true;
+	}
+	
+	if(HasEntProp(entity, Prop_Data, "m_hOwnerEntity"))
+	{
+		client = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
+		if (IsValidClient(client))
+			return true;
+	}
+
+	for (int i = 1; i <= MaxClients; i++) 
 	{
 		if (IsValidClient(i) && GetActiveWeapon(i) == entity)
 			return true;
 	}
-	
+
 	return false;
 }
 
-stock GetActiveWeapon(client)
+stock int GetActiveWeapon(int client)
 {
-	new weapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
+	int weapon = GetEntPropEnt(client, Prop_Data, "m_hActiveWeapon");
 	if (!IsValidEntity(weapon)) 
 	{
 		return false;
@@ -160,8 +207,24 @@ stock GetActiveWeapon(client)
 	return weapon;
 }
 
-stock bool:IsValidClient(client) 
+stock bool IsValidClient(int client) 
 {
     if ( !( 1 <= client <= MaxClients ) || !IsClientInGame(client) ) return false;      
     return true; 
+}
+
+bool Is_UpgradeGroundPack(int entity, char [][] array, int size)
+{
+	char sModelName[256];
+	GetEntPropString(entity, Prop_Data, "m_ModelName", sModelName, sizeof(sModelName));
+
+	for (int i = 0; i < size; i++)
+	{
+		if (StrEqual(sModelName, array[i]))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
