@@ -171,7 +171,6 @@ public void OnPluginStart()
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_team", Event_PlayerChangeTeam);
 	HookEvent("player_spawn", Event_PlayerSpawn);
-	HookEvent("witch_killed", OnWitchKilled);
 
 	Clear();
 
@@ -387,12 +386,6 @@ public Action OnWitchWokeup(Event event, const char[] name, bool dontBroadcast)
 		AddWitchAttack(witchid, client);
 	}
 	
-}
-
-public Action OnWitchKilled(Event event, const char[] name, bool dontBroadcast) 
-{
-	int witchid = GetEventInt(event, "witchid");
-	RemoveWitchAttack(witchid);
 }
 
 public void OnEntityDestroyed(int entity)
