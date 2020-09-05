@@ -1612,7 +1612,7 @@ void GameModeCheck()
 	else if (StrEqual(GameName, "coop", false) || StrEqual(GameName, "realism", false) || StrEqual(GameName, "mutation3", false) || StrEqual(GameName, "mutation9", false) || StrEqual(GameName, "mutation1", false) || StrEqual(GameName, "mutation7", false) || StrEqual(GameName, "mutation10", false) || StrEqual(GameName, "mutation2", false) || StrEqual(GameName, "mutation4", false) || StrEqual(GameName, "mutation5", false) || StrEqual(GameName, "mutation14", false))
 		GameMode = 1;
 	else
-	GameMode = 1;
+		GameMode = 1;
 }
 
 void TankHealthCheck()
@@ -4367,16 +4367,7 @@ public void ShowInfectedHUD(int src)
 						}
 						else
 						{
-							if(IsPlayerTank(i) && !IsFakeClient(i))
-							{
-								int frus = GetFrustration(i);
-								if(frus >= 95 && GameMode != 2)
-								{
-									PrintHintText(i, "[TS] %T","You don't attack survivors",i);
-									ForcePlayerSuicide(i);
-								}
-								Format(iStatus, sizeof(iStatus), "%i%% - %d%%", iHP,100-frus);
-							}
+							if(IsPlayerTank(i) && !IsFakeClient(i)) Format(iStatus, sizeof(iStatus), "%i%% - %d%%", iHP,100-GetFrustration(i));
 							else Format(iStatus, sizeof(iStatus), "%i%%", iHP);
 						}
 					}
@@ -4433,9 +4424,21 @@ public void ShowInfectedHUD(int src)
 	{
 		if (IsClientInGame(i) && !IsFakeClient(i))
 		{
-			if ((GetClientTeam(i) == TEAM_INFECTED || GetClientTeam(i) == TEAM_SPECTATOR) && (hudDisabled[i] == 0) && (GetClientMenu(i) == MenuSource_RawPanel || GetClientMenu(i) == MenuSource_None))
-			{	
-				pInfHUD.Send(i, Menu_InfHUDPanel, 5);
+			if ( (GetClientTeam(i) == TEAM_INFECTED))
+			{
+				if( hudDisabled[i] == 0 && (GetClientMenu(i) == MenuSource_RawPanel || GetClientMenu(i) == MenuSource_None))
+				{	
+					pInfHUD.Send(i, Menu_InfHUDPanel, 5);
+				}
+	
+				if(IsPlayerTank(i))
+				{
+					if(GetFrustration(i) >= 95 && GameMode != 2)
+					{
+						PrintHintText(i, "[TS] %T","You don't attack survivors",i);
+						ForcePlayerSuicide(i);
+					}
+				}
 			}
 		}
 	}
@@ -4881,6 +4884,7 @@ public void L4D_OnEnterGhostState(int client)
 {
 	if(GameMode != 2)
 	{
+		DeleteLight(client);
 		CreateTimer(0.2, Timer_InfectedKillSelf, client, TIMER_FLAG_NO_MAPCHANGE);
 	}	
 }
