@@ -304,7 +304,6 @@ public Action Timer_TankSprite(Handle timer, int client)
 
     if (GetEngineTime()-LastUseTime[client] >= 2.0 && IsPlayerAlive(client) && !IsPlayerIncapped(client))
     {
-        PrintToChatAll("Timer_here");
         DispatchKeyValue(env_sprite, "model", SPRITE_MODEL3);
         DispatchKeyValue(env_sprite, "renderamt", "0");
     }
