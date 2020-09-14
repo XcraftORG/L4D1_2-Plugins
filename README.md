@@ -46,6 +46,7 @@ If you want any modify or request, feel free to use or pay me money to do it.
 * <b>no-rushing</b>: Prevents Rushers From Rushing Then Teleports Them Back To Their Teammates.
 * <b>multitanks_a-l4d2</b>: An improved version of the MultiTanks plugin originally created by Red Alex.
 * <b>fix_botkick</b>: Fixed no Survivor bots issue or too many Survivor bots issue after map loading.
+* <b>l4d_meteor_hunter</b>: Hunter high pounces cause meteor strike
 # Scripting Compiler
 * [sourcemod 1.8 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.8_Compiler.zip): sourcemod v1.8.0.5977 scripting
 * [sourcemod 1.10 compiler](https://github.com/fbef0102/L4D2-Plugins/releases/download/v1.0/sourcemod_1.10_Compiler.zip): sourcemod v1.10.0.6492 scripting
