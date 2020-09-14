@@ -7,7 +7,7 @@
 //5.出安全室之後 不得隨意換隊 (防止跳狗)
 //6.管理員指令新增 sm_swapto <player> <team> 強制指定玩家換隊伍
 
-#define PLUGIN_VERSION    "3.0"
+#define PLUGIN_VERSION    "3.1"
 #define PLUGIN_NAME       "[L4D(2)] AFK and Join Team Commands"
 
 #include <sourcemod>
@@ -569,9 +569,12 @@ public Action TurnClientToSurvivors(int client, int args)
 		}
 		if(iGameMode != 2) //coop/survival
 		{
+			if(GetClientTeam(client) == 3) ChangeClientTeam(client,1);
+
 			if(IsPlayerAlive(bot))
 			{
 				SDKCall(hSetHumanSpec, bot, client);
+				SetEntProp(client, Prop_Send, "m_iObserverMode", 5);
 			}
 			else
 			{
